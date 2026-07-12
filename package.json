@@ -7,5 +7,8 @@
     "server": "npm --prefix Investment-main run server",
     "build": "npm --prefix Investment-main run build",
     "typecheck": "npm --prefix Investment-main run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }
