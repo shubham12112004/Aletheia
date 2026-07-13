@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'; // ✅ Removed unused useMemo
+import { useEffect, useState } from 'react';
 import {
   BrainCircuit,
   ArrowRight,
@@ -20,7 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AgentNetworkMap } from '@/components/AgentNetworkMap';
 import { ComparisonMatrix } from '@/components/ComparisonMatrix';
 
-// ✅ Fix ts(1234) & ts(2339): Declare global types safely at the absolute top level of the file
+// Note: Global window interface for turnstile left intact for when it's re-enabled later
 declare global {
   interface Window {
     turnstile?: {
@@ -81,49 +81,6 @@ function SectionDivider({ label }: { label?: string }) {
 
 export function LandingView() {
   const { navigate } = useAuth();
-  const turnstileRef = useRef<HTMLDivElement>(null);
-  const [, setCaptchaToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const siteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITEKEY;
-    if (!siteKey) return;
-
-    if (!document.getElementById('cloudflare-turnstile-script')) {
-      const script = document.createElement('script');
-      script.id = 'cloudflare-turnstile-script';
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
-    }
-
-    const initTurnstile = () => {
-      if (window.turnstile && turnstileRef.current) {
-        window.turnstile.render(turnstileRef.current, {
-          sitekey: siteKey,
-          callback: (token: string) => {
-            setCaptchaToken(token);
-          },
-          'error-callback': () => {
-            setCaptchaToken(null);
-          },
-          'expired-callback': () => {
-            setCaptchaToken(null);
-          },
-        });
-      } else {
-        setTimeout(initTurnstile, 100);
-      }
-    };
-
-    initTurnstile();
-
-    return () => {
-      if (window.turnstile && turnstileRef.current) {
-        window.turnstile.remove();
-      }
-    };
-  }, []);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -232,11 +189,6 @@ export function LandingView() {
                   See how it works
                   <ArrowRight className="h-4 w-4" />
                 </a>
-              </div>
-
-              {/* Turnstile Container */}
-              <div className="mt-6 flex justify-center min-h-[65px]">
-                <div ref={turnstileRef} id="landing-turnstile"></div>
               </div>
 
               <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
