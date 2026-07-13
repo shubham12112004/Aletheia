@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, BrainCircuit, ChevronDown, Clock3, Database, Globe2, LogOut, PlayCircle, Search, Settings, SlidersHorizontal, TrendingUp, User, X } from 'lucide-react';
@@ -67,8 +66,8 @@ export function DashboardView() {
     setSelectedSnapshotId(null);
   }, [hasResult, result, rawMarkdown, timeline, profile, quote, financials, news]);
 
-  const handleSearch = (targetOverride?: string) => {
-    const target = (targetOverride || company).trim();
+  const handleSearch = (targetOverride?: unknown) => {
+    const target = typeof targetOverride === 'string' ? targetOverride.trim() : company.trim();
     if (!target || running) return;
     setSelectedSnapshotId(null); setActiveTab('dashboard'); setCompany(target);
     run(target, scenario, focus.regulatory, focus.insider);
@@ -113,7 +112,7 @@ export function DashboardView() {
 function DashboardPane({ company, setCompany, running, activeDataset, steps, progress, phase, onSearch, onReset }: { company: string; setCompany: (value: string) => void; running: boolean; activeDataset: ResearchSnapshot | null; steps: any[]; progress: number; phase: string; onSearch: () => void; onReset: () => void }) {
   return <>
     <DashboardCard className="mb-5 p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-blue-600">Dashboard</p><h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">AI Investment Research</h2><p className="mt-1 max-w-2xl text-sm text-slate-500">Search a company and watch the backend research graph build a recommendation from live financial, news, web, and AI analysis.</p></div>{activeDataset && <Button onClick={onReset} variant="outline" className="rounded-full border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50">New Research</Button>}</div>
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={company} onChange={(event) => setCompany(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && onSearch()} disabled={running} placeholder="Apple Inc., Tesla, NVIDIA, Microsoft..." className="h-12 rounded-2xl border-slate-200 bg-slate-50 pl-11 text-base shadow-inner focus-visible:ring-blue-500" /></div><motion.div whileHover={{ scale: running ? 1 : 1.02 }} whileTap={{ scale: running ? 1 : 0.98 }}><Button onClick={onSearch} disabled={!company.trim() || running} className="h-12 w-full rounded-2xl bg-blue-600 px-8 font-black text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 hover:shadow-blue-500/35 sm:w-auto">{running ? 'Researching...' : 'Search'}</Button></motion.div></div>
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={company} onChange={(event) => setCompany(event.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { onSearch(); } }} disabled={running} placeholder="Apple Inc., Tesla, NVIDIA, Microsoft..." className="h-12 rounded-2xl border-slate-200 bg-slate-50 pl-11 text-base shadow-inner focus-visible:ring-blue-500" /></div><motion.div whileHover={{ scale: running ? 1 : 1.02 }} whileTap={{ scale: running ? 1 : 0.98 }}><Button onClick={() => onSearch()} disabled={!company.trim() || running} className="h-12 w-full rounded-2xl bg-blue-600 px-8 font-black text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 hover:shadow-blue-500/35 sm:w-auto">{running ? 'Researching...' : 'Search'}</Button></motion.div></div>
     </DashboardCard>
     {running ? <div className="flex min-h-[calc(100vh-210px)] items-center justify-center py-8"><ProcessingPipeline steps={steps as any} progress={progress} phase={phase} /></div> : activeDataset ? <ResearchDashboard snapshot={activeDataset} /> : <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]"><DashboardCard><SectionTitle title="Agent Map Network Graph" subtitle="Backend execution graph appears here during research" /><div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950"><ResearchGraphView steps={steps as any} /></div></DashboardCard><EmptyDashboard /></div>}
   </>;
