@@ -1,24 +1,23 @@
-import { useEffect, useState } from 'react';
-import {
-  BrainCircuit,
-  ArrowRight,
-  Network,
-  Radar,
-  Gauge,
-  FileInput,
-  Search,
-  ShieldCheck,
-  FileOutput,
-  Sparkles,
-  Activity,
-  Github,
-  BookOpen,
-  CheckCircle2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
 import { AgentNetworkMap } from '@/components/AgentNetworkMap';
 import { ComparisonMatrix } from '@/components/ComparisonMatrix';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+import {
+    Activity,
+    ArrowRight,
+    BookOpen,
+    BrainCircuit,
+    CheckCircle2,
+    FileInput,
+    FileOutput,
+    Gauge,
+    Github,
+    Network,
+    Radar,
+    Search,
+    ShieldCheck,
+    Sparkles,
+} from 'lucide-react';
 
 // Note: Global window interface for turnstile left intact for when it's re-enabled later
 declare global {
