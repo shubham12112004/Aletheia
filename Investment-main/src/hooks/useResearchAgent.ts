@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { postResearch } from '@/lib/api';
-import { answerQuestion } from '@/lib/mockData';
+import { postResearch, postChatQuery } from '@/lib/api'; // ✅ Real chat query API integration replaces mockData
 import type {
   ArchStep,
   ArchStepStatus,
@@ -31,50 +30,13 @@ function freshSteps(): ArchStep[] {
   return GRAPH_STEPS.map((s) => ({ ...s, status: 'pending' as ArchStepStatus }));
 }
 
-/**
- * Parses out verdict structural values dynamically from AI Markdown text
- */
-function parseVerdictFromMarkdown(markdown: string): 'INVEST' | 'PASS' {
-  const upperText = markdown.toUpperCase();
-  
-  const recommendationSection = upperText.match(/(?:VERDICT|RECOMMENDATION|FINAL ACTION)\s*[:\-*]*\s*([A-Z]+)/);
-  
-  if (recommendationSection && recommendationSection[1]) {
-    const verdictWord = recommendationSection[1].trim();
-    if (['PASS', 'SELL', 'HOLD'].includes(verdictWord)) {
-      return 'PASS';
-    }
-    if (['INVEST', 'BUY', 'BULLISH'].includes(verdictWord)) {
-      return 'INVEST';
-    }
+// ✅ Professional Financial Formatter for Trillions and Billions
+const formatMarketCap = (v: number) => {
+  if (v >= 1000) {
+    return `$${(v / 1000).toFixed(2)} T`;
   }
-
-  if (
-    upperText.includes('VERDICT: PASS') || 
-    upperText.includes('RECOMMENDATION: PASS') ||
-    upperText.includes('RECOMMENDATION: SELL') ||
-    upperText.includes('RECOMMENDATION: HOLD')
-  ) {
-    return 'PASS';
-  }
-  
-  return 'INVEST';
-}
-
-/**
- * Dynamic parameter extractor targeting percentage patterns or numbers near score keywords
- */
-function parseConfidenceFromMarkdown(markdown: string): number {
-  const confidenceRegex = /(?:CONFIDENCE SCORE|CONFIDENCE|INVESTMENT SCORE)\s*[:\-*]*\s*(\d{1,3})(?:%|\b)/i;
-  const match = markdown.match(confidenceRegex);
-  
-  if (match && match[1]) {
-    const value = parseInt(match[1], 10);
-    if (value >= 0 && value <= 100) return value;
-  }
-  
-  return 85;
-}
+  return `$${v.toFixed(2)} B`;
+};
 
 export function useResearchAgent() {
   const [status, setStatus] = useState<Status>('idle');
@@ -179,7 +141,17 @@ export function useResearchAgent() {
           focus: { regulatory, insider },
         });
         
-        setRawMarkdown(response.report);
+        // ✅ Handle failed states immediately before allocating downstream parameters
+        if (response.success === false) {
+          throw new Error(response.message || 'The research server rejected this operation.');
+        }
+
+        // ✅ Resilient markdown content string extraction strategy
+        const markdownContent = typeof response.report === 'string'
+          ? response.report
+          : response.report?.report || JSON.stringify(response.report || 'No report found.');
+
+        setRawMarkdown(markdownContent);
         setProfile(response.profile);
         setQuote(response.quote);
         setFinancials(response.financials);
@@ -195,72 +167,97 @@ export function useResearchAgent() {
         setPhase('complete');
         setStatus('complete');
 
-        const markdownContent = typeof response?.report === 'string' 
-          ? response.report 
-          : JSON.stringify(response?.report ?? 'No report found.');
+        const formatQuoteVal = (val: any, prefix = '', suffix = '') => {
+          return val !== undefined && val !== null ? `${prefix}${Number(val).toFixed(2)}${suffix}` : 'N/A';
+        };
 
-        const calculatedVerdict = parseVerdictFromMarkdown(markdownContent);
-        const calculatedConfidence = parseConfidenceFromMarkdown(markdownContent);
-
-        // Explicitly structural metrics construction mapping
-        const syntheticReport: ResearchResult = {
-          company: response.profile?.name || company || 'Unknown Company',
-          ticker: response.profile?.ticker || 'N/A',
-          verdict: calculatedVerdict,
-          confidence: calculatedConfidence,
+        // ✅ All fields are mapped directly from the flat response root object
+        const cleanResult: ResearchResult = {
+          company: response.company || response.profile?.name || company || 'Unknown Company',
+          ticker: response.ticker || response.profile?.ticker || 'N/A',
+          verdict: response.verdict || 'INVEST',
+          confidence: response.confidence || 85,
           scenarioId: scenario.id,
-          executiveSummary: [markdownContent], 
+          executiveSummary: Array.isArray(response.executiveSummary) 
+            ? response.executiveSummary 
+            : [markdownContent], 
           metrics: [
             {
-              label: "Revenue",
-              value: String(response.financials?.metric?.revenuePerShareTTM ?? "N/A"),
+              label: "Current Price",
+              value: response.quote?.c ? `$${Number(response.quote.c).toLocaleString()}` : "N/A",
+              // ✅ Swapped dynamic change parameter to use percentage updates (dp)
+              delta: response.quote?.dp ? `${response.quote.dp >= 0 ? '+' : ''}${response.quote.dp.toFixed(2)}%` : "",
+              tone: response.quote?.dp ? (response.quote.dp >= 0 ? 'positive' : 'negative') : 'neutral',
+              description: "Current market price index",
+            },
+            {
+              label: "Market Cap",
+              value: response.profile?.marketCapitalization ? formatMarketCap(Number(response.profile.marketCapitalization)) : "N/A",
               delta: "",
               tone: "neutral",
-              description: "Revenue per share"
+              description: "Market Capitalization size",
+            },
+            {
+              label: "52 Week High",
+              value: formatQuoteVal(response.financials?.metric?.['52WeekHigh'] ?? response.quote?.h, '$'),
+              delta: "",
+              tone: "neutral",
+              description: "Yearly maximum price range index",
+            },
+            {
+              label: "52 Week Low",
+              value: formatQuoteVal(response.financials?.metric?.['52WeekLow'] ?? response.quote?.l, '$'),
+              delta: "",
+              tone: "neutral",
+              description: "Yearly minimum price range index",
             },
             {
               label: "P/E Ratio",
-              value: String(response.financials?.metric?.peTTM ?? "N/A"),
+              value: String(response.financials?.metric?.peBasicExclExtraTTM ?? response.financials?.metric?.peTTM ?? "N/A"),
               delta: "",
               tone: "neutral",
-              description: "Price to Earnings"
+              description: "Price to Earnings multi-factor",
             },
             {
               label: "EPS",
-              value: String(response.financials?.metric?.epsTTM ?? "N/A"),
+              value: String(response.financials?.metric?.epsBasicExclExtraItemsTTM ?? response.financials?.metric?.epsTTM ?? "N/A"),
               delta: "",
               tone: "neutral",
-              description: "Earnings Per Share"
-            },
-            {
-              label: "Dividend",
-              value: String(response.financials?.metric?.dividendYieldIndicatedAnnual ?? "N/A"),
-              delta: "",
-              tone: "neutral",
-              description: "Dividend Yield"
+              description: "Earnings Per Share tracking index",
             },
             {
               label: "Beta",
               value: String(response.financials?.metric?.beta ?? "N/A"),
               delta: "",
               tone: "neutral",
-              description: "Volatility"
-            }
+              description: "Systemic market volatility index",
+            },
+            {
+              label: "Dividend Yield",
+              value: response.financials?.metric?.dividendYieldIndicatedAnnual 
+                ? `${Number(response.financials.metric.dividendYieldIndicatedAnnual).toFixed(2)}%` 
+                : "N/A",
+              delta: "",
+              tone: "neutral",
+              description: "Indicated annual dividend distribution yield metrics",
+            },
           ],
-          pros: [],
-          cons: [],
+          pros: Array.isArray(response.pros) ? response.pros : [],
+          cons: Array.isArray(response.cons) ? response.cons : [],
           citations: Array.isArray(response.news) ? response.news.map((item: any) => ({
             title: item.title,
             snippet: item.description || '',
             source: item.source?.name || 'News API',
             timestamp: item.publishedAt || '',
             url: item.url || '#'
-          })) : [],
-          revenueSeries: [],
-          regulatoryNotes: [],
-          insiderNotes: [],
+          })) : (Array.isArray(response.citations) ? response.citations : []),
+          // ✅ Map real arrays downstream directly from server payload
+          revenueSeries: Array.isArray(response.revenueSeries) ? response.revenueSeries : [],
+          regulatoryNotes: Array.isArray(response.regulatoryNotes) ? response.regulatoryNotes : [],
+          insiderNotes: Array.isArray(response.insiderNotes) ? response.insiderNotes : [],
         };
-        setResult(syntheticReport);
+        
+        setResult(cleanResult);
 
         setStreamedSections([
           { section: 'AI Generated Report', content: markdownContent },
@@ -269,7 +266,7 @@ export function useResearchAgent() {
 
         setTimeline((prev) => [
           ...prev,
-          { id: timelineIdRef.current++, label: 'Analysis Complete', detail: 'Groq Markdown report loaded immediately', timestamp: nowStamp(), state: 'done' }
+          { id: timelineIdRef.current++, label: 'Analysis Complete', detail: 'Structured analytics dashboard mounted successfully', timestamp: nowStamp(), state: 'done' }
         ]);
         setThinking((prev) => [...prev, 'Report compiled successfully.']);
         setLogs((prev) => [
@@ -320,15 +317,38 @@ export function useResearchAgent() {
     timelineIdRef.current = 0;
   }, []);
 
-  const ask = useCallback((text: string, scenario: MacroScenario) => {
+  // ✅ Async backend integration strategy cleanly executing Groq updates dynamically
+  const ask = useCallback(async (text: string, scenario: MacroScenario) => {
     const userMsg: ChatMessage = { id: msgIdRef.current++, role: 'user', text, timestamp: nowStamp() };
     setMessages((prev) => [...prev, userMsg]);
 
-    const answer = answerQuestion(text, result, scenario);
-    setMessages((prev) => [
-      ...prev,
-      { id: msgIdRef.current++, role: 'agent', text: answer, timestamp: nowStamp() },
-    ]);
+    try {
+      const response = await postChatQuery({
+        question: text,
+        context: result,
+        scenario: scenario.id
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        { 
+          id: msgIdRef.current++, 
+          role: 'agent', 
+          text: response.answer || "No response received from agent pipeline.", 
+          timestamp: nowStamp() 
+        },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { 
+          id: msgIdRef.current++, 
+          role: 'agent', 
+          text: "Communication timeout error checking context strings.", 
+          timestamp: nowStamp() 
+        },
+      ]);
+    }
   }, [result]);
 
   useEffect(() => {
@@ -339,6 +359,7 @@ export function useResearchAgent() {
     };
   }, []);
 
+  // Note: Unused socketId, replay, and canReplay variables removed from type bindings return signature
   return {
     status,
     phase,
@@ -349,7 +370,6 @@ export function useResearchAgent() {
     messages,
     timeline,
     thinking,
-    socketId: undefined, 
     logs,
     streamedSections,
     profile,
@@ -359,7 +379,5 @@ export function useResearchAgent() {
     run,
     reset,
     ask,
-    replay: () => {}, 
-    canReplay: false,
   };
 }

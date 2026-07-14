@@ -1,50 +1,55 @@
 const axios = require("axios");
-
 const OpenAI = require("openai");
 
 const groq = new OpenAI({
     apiKey: process.env.GROQ_API_KEY,
     baseURL: "https://api.groq.com/openai/v1"
 });
-console.log("Groq Key Loaded:", !!process.env.GROQ_API_KEY);
-console.log("Groq Key Prefix:", process.env.GROQ_API_KEY?.substring(0, 8));
+
 const TAVILY_KEY = process.env.TAVILY_API_KEY;
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
 const NEWS_KEY = process.env.NEWS_API_KEY;
 
 /*
 =========================================
-Search Company Symbol
+Search Company Symbol with Weighted Ranking
 =========================================
 */
-
-exports.searchCompany = async (company) => {
+exports.searchCompany = async (query) => {
     try {
-
         const { data } = await axios.get(
             "https://finnhub.io/api/v1/search",
             {
                 params: {
-                    q: company,
+                    q: query,
                     token: FINNHUB_KEY
                 }
             }
         );
 
-        if (data.result && data.result.length > 0) {
-            return data.result[0];
-        }
+        if (!data.result || data.result.length === 0) return null;
 
-        return null;
+        const normalizedQuery = query.trim().toUpperCase();
+
+        const ranked = data.result.map(item => {
+            let score = 0;
+            const symbol = (item.symbol || "").toUpperCase();
+            const description = (item.description || "").toUpperCase();
+
+            if (symbol === normalizedQuery) score += 100;
+            if (description === normalizedQuery) score += 50;
+            if (item.type === "Common Stock") score += 30;
+            if (symbol.length <= 4) score += 10;
+            if (description.includes(normalizedQuery)) score += 5;
+
+            return { item, score };
+        });
+
+        ranked.sort((a, b) => b.score - a.score);
+        return ranked[0].item;
 
     } catch (err) {
-
-        console.error(
-            "Finnhub Search Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-
+        console.error("Finnhub Search Error:", err.message);
         return null;
     }
 };
@@ -54,24 +59,16 @@ exports.searchCompany = async (company) => {
 Company Profile
 =========================================
 */
-
 exports.getCompanyProfile = async (company) => {
-
     try {
-
         let symbol = company;
 
         if (!company.match(/^[A-Z]{1,5}$/i)) {
-
             const search = await exports.searchCompany(company);
-
             if (search && search.symbol) {
                 symbol = search.symbol;
             }
-
         }
-
-        console.log("Using Symbol:", symbol);
 
         const { data } = await axios.get(
             "https://finnhub.io/api/v1/stock/profile2",
@@ -83,16 +80,13 @@ exports.getCompanyProfile = async (company) => {
             }
         );
 
+        if (data) {
+            data.ticker = symbol;
+        }
+
         return data;
-
     } catch (err) {
-
-        console.error(
-            "Finnhub Profile Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-
+        console.error("Finnhub Profile Error:", err.message);
         return {};
     }
 };
@@ -102,34 +96,23 @@ exports.getCompanyProfile = async (company) => {
 Company News
 =========================================
 */
-
-exports.getCompanyNews = async (company) => {
-
+exports.getCompanyNews = async (searchString) => {
     try {
-
         const { data } = await axios.get(
             "https://newsapi.org/v2/everything",
             {
                 params: {
-                    q: company,
-                    pageSize: 10,
+                    q: searchString,
+                    pageSize: 20,
                     sortBy: "publishedAt",
                     language: "en",
                     apiKey: NEWS_KEY
                 }
             }
         );
-
         return data.articles || [];
-
     } catch (err) {
-
-        console.error(
-            "NewsAPI Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-
+        console.error("NewsAPI Error:", err.message);
         return [];
     }
 };
@@ -139,11 +122,8 @@ exports.getCompanyNews = async (company) => {
 Tavily Search
 =========================================
 */
-
 exports.tavilySearch = async (company) => {
-
     try {
-
         const { data } = await axios.post(
             "https://api.tavily.com/search",
             {
@@ -154,216 +134,154 @@ exports.tavilySearch = async (company) => {
                 max_results: 5
             }
         );
-
         return data.results || [];
-
     } catch (err) {
-
-        console.error(
-            "Tavily Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-
+        console.error("Tavily Error:", err.message);
         return [];
     }
 };
 
 /*
 =========================================
-Gemini Report
+Groq Structured Report Generation Engine
 =========================================
 */
-
-exports.generateGroqReport = async ({ profile, news, web }) => {
-
+exports.generateGroqReport = async ({ profile, quote, financials, news, web }) => {
+    let response; // ✅ Lifted declaration allows safe validation fallback across code blocks
+    
     try {
-
-        const latestNews = news
+        const latestNews = (news || [])
             .slice(0, 5)
             .map((n) => `Title: ${n.title}\nDescription: ${n.description || "No description available."}`)
             .join("\n\n");
 
-        const webResults = web
+        const webResults = (web || [])
             .slice(0, 5)
             .map((r) => `Title: ${r.title}\nContent: ${r.content || "No content available."}`)
             .join("\n\n");
 
         const prompt = `
 You are a CFA Level III Investment Research Analyst.
-
-Analyze the following company and prepare a professional investment report.
+Analyze the following asset vectors comprehensively and return a professional evaluation.
 
 ==============================
 Company Profile
 ==============================
-
 ${JSON.stringify(profile, null, 2)}
+
+==============================
+Live Market Quote
+==============================
+${JSON.stringify(quote || {}, null, 2)}
+
+==============================
+Financial Metrics
+==============================
+${JSON.stringify(financials?.metric || {}, null, 2)}
 
 ==============================
 Latest News
 ==============================
-
 ${latestNews}
 
 ==============================
 Web Research
 ==============================
-
 ${webResults}
 
-Generate a detailed report containing:
+Generate a detailed report. Your final answer must be a valid JSON object matching the schema below. Do not wrap it in markdown code fences or add additional commentary blocks.
 
-1. Executive Summary
-2. Company Overview
-3. Industry Analysis
-4. Financial Health
-5. SWOT Analysis
-6. Growth Opportunities
-7. Risk Analysis
-8. Latest News Impact
-9. Buy / Hold / Sell Recommendation
-10. Confidence Score (0-100)
-
-Return ONLY markdown.
+Expected JSON schema format:
+{
+  "company": "Company Name",
+  "ticker": "TICKER",
+  "verdict": "INVEST" or "PASS",
+  "confidence": 92,
+  "executiveSummary": [
+    "Primary summary investment thesis statement.",
+    "Macro risk evaluation statement."
+  ],
+  "pros": [
+    { "text": "Detail description of strength factor.", "weight": "high" }
+  ],
+  "cons": [
+    { "text": "Detail description of bottleneck constraint factor.", "weight": "medium" }
+  ],
+  "report": "Provide the comprehensive long-form technical report rendered here in valid Markdown syntax covering: Executive Summary, Business Model, Competitive Advantage, Industry Analysis, Financial Health, Market Position, Valuation, News Impact, SWOT Analysis, Risks, Growth Catalysts, and Outlook."
+}
 `;
 
-        console.log("================================");
-        console.log("Calling Groq...");
-        console.log("Model: llama-3.3-70b-versatile");
-        console.log("================================");
-
-        const response = await Promise.race([
-
+        response = await Promise.race([
             groq.chat.completions.create({
-
                 model: "llama-3.3-70b-versatile",
-
+                response_format: { type: "json_object" }, 
                 messages: [
-
                     {
                         role: "system",
-                        content: "You are an expert financial investment analyst."
+                        content: "You are an expert financial investment analyst who outputs only strict, structured JSON matching the requested schema exactly."
                     },
-
                     {
                         role: "user",
                         content: prompt
                     }
-
                 ],
-
-                temperature: 0.5,
-                max_tokens: 4096
-
+                temperature: 0.2,
+                max_tokens: 4096 
             }),
-
             new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Groq Timeout")), 30000)
+                setTimeout(() => reject(new Error("Groq processing pipeline timed out.")), 45000)
             )
-
         ]);
 
-        console.log("================================");
-        console.log("Groq Success");
-        console.log("================================");
-
-        if (
-            !response ||
-            !response.choices ||
-            !response.choices.length === 0
-        ) {
-            throw new Error("Groq returned an empty response.");
+        if (!response || !response.choices || response.choices.length === 0) {
+            throw new Error("Groq returned an empty choice matrix.");
         }
 
-        return response.choices[0].message.content;
+        const content = response.choices[0].message.content;
+        
+        // ✅ Sanitize fenced markdown representations before executing parsing logic
+        const cleaned = content
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+            
+        return JSON.parse(cleaned);
 
-    } catch (err) {
+    } catch (jsonErr) {
+        console.warn("JSON resolution fallback mounted:", jsonErr.message);
+        
+        // Safe context recovery without causing ReferenceErrors
+        const rawContentFallback = typeof response !== 'undefined' 
+            ? response?.choices?.[0]?.message?.content || "" 
+            : "";
 
-        console.log("================================");
-        console.error("Groq Error");
-        console.log("================================");
-
-        console.error(err);
-
-        if (err.response) {
-            console.error("Status:", err.response.status);
-            console.error(err.response.data);
-        }
-
-        return "Unable to generate investment report.";
+        return {
+            company: profile?.name || "Unknown Company",
+            ticker: profile?.ticker || "N/A",
+            verdict: "PASS",
+            confidence: 75,
+            executiveSummary: ["Fallback dataset loaded due to pipeline structure exceptions."],
+            pros: [],
+            cons: [],
+            news: [],
+            revenueSeries: [],
+            regulatoryNotes: [],
+            insiderNotes: [],
+            report: rawContentFallback || "Unable to format target summary text blocks."
+        };
     }
 };
 
-/*
-=========================================
-New Functions: Finnhub Pricing & Financial Metrics APIs
-=========================================
-*/
-
 exports.getQuote = async (symbol) => {
     try {
-        const { data } = await axios.get(
-            "https://finnhub.io/api/v1/quote",
-            {
-                params: {
-                    symbol,
-                    token: FINNHUB_KEY
-                }
-            }
-        );
+        const { data } = await axios.get("https://finnhub.io/api/v1/quote", { params: { symbol, token: FINNHUB_KEY } });
         return data;
-    } catch (err) {
-        console.error(
-            "Finnhub Quote Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-        return null;
-    }
+    } catch (err) { return null; }
 };
 
 exports.getBasicFinancials = async (symbol) => {
     try {
-        const { data } = await axios.get(
-            "https://finnhub.io/api/v1/stock/metric",
-            {
-                params: {
-                    symbol,
-                    metric: "all",
-                    token: FINNHUB_KEY
-                }
-            }
-        );
+        const { data } = await axios.get("https://finnhub.io/api/v1/stock/metric", { params: { symbol, metric: "all", token: FINNHUB_KEY } });
         return data;
-    } catch (err) {
-        console.error(
-            "Finnhub Basic Financials Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-        return null;
-    }
-};
-
-exports.getCompanyMetrics = async (symbol) => {
-    try {
-        const { data } = await axios.get(
-            "https://finnhub.io/api/v1/stock/financials-reported",
-            {
-                params: {
-                    symbol,
-                    token: FINNHUB_KEY
-                }
-            }
-        );
-        return data;
-    } catch (err) {
-        console.error(
-            "Finnhub Reported Metrics Error:",
-            err.response?.status,
-            err.response?.data || err.message
-        );
-        return null;
-    }
+    } catch (err) { return null; }
 };

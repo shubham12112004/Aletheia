@@ -1,33 +1,39 @@
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
 export async function postResearch(payload: unknown) {
   const response = await fetch(`${API_URL}/api/research`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Research request failed' }));
-    throw new Error(error.error ?? 'Research request failed');
+  const data = await response.json();
+
+  if (!response.ok || data.success === false) {
+    throw new Error(data.message ?? "Research request failed");
   }
 
-  return response.json();
+  return data;
 }
 
-export async function replayResearch(id: string, socketId?: string) {
-  const response = await fetch(`${API_URL}/api/research/${id}/replay`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ socketId }),
+export async function postChatQuery(payload: unknown) {
+  const response = await fetch(`${API_URL}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Replay request failed' }));
-    throw new Error(error.error ?? 'Replay request failed');
+  const data = await response.json();
+
+  if (!response.ok || data.success === false) {
+    throw new Error(data.message ?? "Chat request failed");
   }
 
-  return response.json();
+  return data;
 }
 
 export { API_URL };
