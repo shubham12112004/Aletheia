@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { postResearch, postChatQuery } from '@/lib/api'; // ✅ Real chat query API integration replaces mockData
+import { postResearch, postChatQuery } from '@/lib/api'; // âœ… Real chat query API integration replaces mockData
 import type {
   ArchStep,
   ArchStepStatus,
@@ -30,7 +30,7 @@ function freshSteps(): ArchStep[] {
   return GRAPH_STEPS.map((s) => ({ ...s, status: 'pending' as ArchStepStatus }));
 }
 
-// ✅ Professional Financial Formatter for Trillions and Billions
+// âœ… Professional Financial Formatter for Trillions and Billions
 const formatMarketCap = (v: number) => {
   if (v >= 1000) {
     return `$${(v / 1000).toFixed(2)} T`;
@@ -141,12 +141,12 @@ export function useResearchAgent() {
           focus: { regulatory, insider },
         });
         
-        // ✅ Handle failed states immediately before allocating downstream parameters
+        // âœ… Handle failed states immediately before allocating downstream parameters
         if (response.success === false) {
           throw new Error(response.message || 'The research server rejected this operation.');
         }
 
-        // ✅ Resilient markdown content string extraction strategy
+        // âœ… Resilient markdown content string extraction strategy
         const markdownContent = typeof response.report === 'string'
           ? response.report
           : response.report?.report || JSON.stringify(response.report || 'No report found.');
@@ -171,12 +171,12 @@ export function useResearchAgent() {
           return val !== undefined && val !== null ? `${prefix}${Number(val).toFixed(2)}${suffix}` : 'N/A';
         };
 
-        // ✅ All fields are mapped directly from the flat response root object
+        // âœ… All fields are mapped directly from the flat response root object
         const cleanResult: ResearchResult = {
           company: response.company || response.profile?.name || company || 'Unknown Company',
           ticker: response.ticker || response.profile?.ticker || 'N/A',
           verdict: response.verdict || 'INVEST',
-          confidence: response.confidence || 85,
+          confidence: typeof response.confidence === 'number' ? response.confidence : 0,
           scenarioId: scenario.id,
           executiveSummary: Array.isArray(response.executiveSummary) 
             ? response.executiveSummary 
@@ -185,7 +185,7 @@ export function useResearchAgent() {
             {
               label: "Current Price",
               value: response.quote?.c ? `$${Number(response.quote.c).toLocaleString()}` : "N/A",
-              // ✅ Swapped dynamic change parameter to use percentage updates (dp)
+              // âœ… Swapped dynamic change parameter to use percentage updates (dp)
               delta: response.quote?.dp ? `${response.quote.dp >= 0 ? '+' : ''}${response.quote.dp.toFixed(2)}%` : "",
               tone: response.quote?.dp ? (response.quote.dp >= 0 ? 'positive' : 'negative') : 'neutral',
               description: "Current market price index",
@@ -242,8 +242,12 @@ export function useResearchAgent() {
               description: "Indicated annual dividend distribution yield metrics",
             },
           ],
-          pros: Array.isArray(response.pros) ? response.pros : [],
-          cons: Array.isArray(response.cons) ? response.cons : [],
+          pros: Array.isArray(response.pros) ? response.pros.map((item: any) =>
+            typeof item === 'string' ? { text: item, weight: 'medium' as const } : item
+          ) : [],
+          cons: Array.isArray(response.cons) ? response.cons.map((item: any) =>
+            typeof item === 'string' ? { text: item, weight: 'medium' as const } : item
+          ) : [],
           citations: Array.isArray(response.news) ? response.news.map((item: any) => ({
             title: item.title,
             snippet: item.description || '',
@@ -251,7 +255,7 @@ export function useResearchAgent() {
             timestamp: item.publishedAt || '',
             url: item.url || '#'
           })) : (Array.isArray(response.citations) ? response.citations : []),
-          // ✅ Map real arrays downstream directly from server payload
+          // âœ… Map real arrays downstream directly from server payload
           revenueSeries: Array.isArray(response.revenueSeries) ? response.revenueSeries : [],
           regulatoryNotes: Array.isArray(response.regulatoryNotes) ? response.regulatoryNotes : [],
           insiderNotes: Array.isArray(response.insiderNotes) ? response.insiderNotes : [],
@@ -317,7 +321,7 @@ export function useResearchAgent() {
     timelineIdRef.current = 0;
   }, []);
 
-  // ✅ Async backend integration strategy cleanly executing Groq updates dynamically
+  // âœ… Async backend integration strategy cleanly executing Groq updates dynamically
   const ask = useCallback(async (text: string, scenario: MacroScenario) => {
     const userMsg: ChatMessage = { id: msgIdRef.current++, role: 'user', text, timestamp: nowStamp() };
     setMessages((prev) => [...prev, userMsg]);

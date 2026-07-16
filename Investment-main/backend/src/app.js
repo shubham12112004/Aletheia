@@ -16,12 +16,14 @@ function createApp() {
 
   app.use(helmet());
 
-  // Allowed Origins
+  // Allow the configured production clients and Vite's local development ports.
+  // Vite chooses the next available port when 5173 is already occupied.
   const allowedOrigins = [
     "http://localhost:5173",
     "https://aletheia-rosy.vercel.app",
     env.CLIENT_URL,
   ].filter(Boolean);
+  const localViteOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
 
   app.use(
     cors({
@@ -31,7 +33,7 @@ function createApp() {
           return callback(null, true);
         }
 
-        if (allowedOrigins.includes(origin)) {
+        if (allowedOrigins.includes(origin) || localViteOrigin.test(origin)) {
           return callback(null, true);
         }
 
