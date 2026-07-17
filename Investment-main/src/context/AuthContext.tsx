@@ -15,6 +15,7 @@ type AuthMode = 'login' | 'register' | 'reset';
 type User = {
   email: string;
   name: string;
+  picture?: string;
   provider?: 'email' | 'google';
 };
 

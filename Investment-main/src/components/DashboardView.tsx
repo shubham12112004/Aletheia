@@ -4,7 +4,7 @@ import {
   Bell, BrainCircuit, ChevronDown, Clock3, Database, Globe2,
   PlayCircle, Search, Settings, SlidersHorizontal, TrendingUp, User, X,
   Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
-  Camera
+  Camera, LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +62,7 @@ export function DashboardView() {
   const [scenario] = useState<MacroScenario>(MACRO_SCENARIOS[2]);
   const [focus] = useState<FocusFilters>({ regulatory: true, insider: false });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [history, setHistory] = useState<ResearchSnapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
@@ -278,17 +279,49 @@ export function DashboardView() {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setActiveTab('profile')}
+                onClick={() => { setProfileMenuOpen((v) => !v); setNotificationsOpen(false); }}
                 className="flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2 py-1.5 transition hover:border-emerald-500/30 hover:bg-white/6"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-xs font-black text-white shadow-md shadow-emerald-500/25">
-                  {initials}
-                </span>
+                {user?.picture ? (
+                  <img src={user.picture} alt="Avatar" className="h-7 w-7 rounded-full object-cover shadow-md shadow-emerald-500/25 border border-emerald-500/20" />
+                ) : (
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-xs font-black text-white shadow-md shadow-emerald-500/25">
+                    {initials}
+                  </span>
+                )}
                 <span className="hidden max-w-[130px] truncate text-sm font-semibold text-zinc-300 sm:block">
                   {user?.name || 'Profile'}
                 </span>
-                <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                <ChevronDown className={cn("h-3.5 w-3.5 text-zinc-500 transition-transform", profileMenuOpen && "rotate-180")} />
               </button>
+
+              <AnimatePresence>
+                {profileMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/8 bg-[#0d1117]/95 p-1 shadow-2xl backdrop-blur-xl"
+                  >
+                    <button
+                      onClick={() => { setActiveTab('profile'); setProfileMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/5 hover:text-white transition"
+                    >
+                      <User className="h-4 w-4" />
+                      View Profile
+                    </button>
+                    <div className="my-1 h-px w-full bg-white/5" />
+                    <button
+                      onClick={() => { logout(); setProfileMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-red-400 hover:bg-red-400/10 transition"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -768,7 +801,7 @@ function WatchlistPane({ watchlist, error, onResearch, onRemove }: {
 // Profile Pane (Tab view with user pic)
 // ─────────────────────────────────────────────────────────────────────────────
 function ProfilePane({ user, token, onSave, logout, addNotification }: {
-  user: any; token: string | null; onSave: (updates: { name: string; email: string }) => void; logout: () => void;
+  user: any; token: string | null; onSave: (updates: { name?: string; email?: string; picture?: string }) => void; logout: () => void;
   addNotification: (t: string, d: string, type?: 'info' | 'success' | 'warn') => void;
 }) {
   const [name, setName] = useState(user?.name || '');
@@ -791,7 +824,6 @@ function ProfilePane({ user, token, onSave, logout, addNotification }: {
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 
   // File selector for simulated profile picture
-  const [avatarFileName, setAvatarFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleProfileSave = async (e: FormEvent) => {
@@ -865,9 +897,13 @@ function ProfilePane({ user, token, onSave, logout, addNotification }: {
         <div className="flex flex-col sm:flex-row items-center gap-5 bg-white/3 border border-white/5 p-5 rounded-2xl mb-6">
           <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             {/* Avatar circle */}
-            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center font-black text-3xl border-2 border-emerald-400/40 shadow-lg shadow-emerald-500/10">
-              {initials}
-            </div>
+            {user?.picture ? (
+              <img src={user.picture} alt="Avatar" className="h-24 w-24 rounded-full object-cover border-2 border-emerald-400/40 shadow-lg shadow-emerald-500/10" />
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center font-black text-3xl border-2 border-emerald-400/40 shadow-lg shadow-emerald-500/10">
+                {initials}
+              </div>
+            )}
             {/* Hover overlay */}
             <div className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-[10px] font-bold text-white">
               <Camera className="h-4 w-4 mb-1" />
@@ -880,8 +916,14 @@ function ProfilePane({ user, token, onSave, logout, addNotification }: {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  setAvatarFileName(file.name);
-                  addNotification('Avatar Uploaded', `Simulated file upload for: ${file.name}`, 'info');
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    if (event.target?.result) {
+                      onSave({ picture: event.target.result as string });
+                      addNotification('Avatar Uploaded', `Successfully updated profile picture.`, 'success');
+                    }
+                  };
+                  reader.readAsDataURL(file);
                 }
               }}
               className="hidden"
@@ -891,7 +933,7 @@ function ProfilePane({ user, token, onSave, logout, addNotification }: {
             <h4 className="text-lg font-black text-white">{user?.name || 'Workspace Analyst'}</h4>
             <p className="text-sm text-zinc-500 truncate">{user?.email}</p>
             <p className="text-[10px] text-zinc-500 font-semibold mt-1">
-              {avatarFileName ? `Image file: ${avatarFileName}` : 'Click image to upload photo'}
+              Click image to upload photo
             </p>
           </div>
         </div>
