@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { useAuth } from '@/context/AuthContext';
-import { postGoogleLogin, postSignup, postEmailLogin, postForgotPassword } from '@/lib/api';
+import { postGoogleLogin, postSignup, postEmailLogin, postForgotPassword, postVerifyOTP } from '@/lib/api';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
@@ -40,6 +40,11 @@ export function AuthView() {
   const [submitting, setSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileKey, setTurnstileKey] = useState(0);
+  // OTP forgot-password state
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITEKEY as string | undefined;
@@ -104,6 +109,9 @@ export function AuthView() {
     setAuthMode(nextMode === 'login' ? 'login' : nextMode === 'signup' ? 'register' : 'reset');
     setError(null);
     setSuccessMsg(null);
+    setOtpSent(false);
+    setOtp('');
+    setNewPassword('');
     setTurnstileToken('');
     setTurnstileKey((v) => v + 1);
   };
@@ -112,6 +120,24 @@ export function AuthView() {
     event.preventDefault();
     setError(null);
     setSuccessMsg(null);
+
+    // ── Step 2: OTP verify ──
+    if (mode === 'forgot' && otpSent) {
+      if (otp.length !== 6) return setError('Enter the 6-digit OTP sent to your email.');
+      if (newPassword.length < 6) return setError('New password must be at least 6 characters.');
+      setSubmitting(true);
+      try {
+        await postVerifyOTP({ email: email.trim(), otp, newPassword });
+        setSuccessMsg('Password reset successfully! You can now sign in with your new password.');
+        setTimeout(() => switchMode('login'), 2000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'OTP verification failed.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Enter a valid email address.');
     if (mode !== 'forgot' && password.length < 6) return setError('Password must contain at least 6 characters.');
     if (mode === 'signup' && password !== confirmPassword) return setError('Passwords do not match.');
@@ -127,9 +153,10 @@ export function AuthView() {
         const res = await postEmailLogin({ email: email.trim(), password, turnstileToken });
         setSession({ token: res.token, user: { email: res.user.email, name: res.user.name, provider: 'email' } });
       } else {
-        const res = await postForgotPassword({ email: email.trim(), turnstileToken });
-        setSuccessMsg(`Temporary password generated successfully: ${res.tempPassword}. You can now sign in.`);
-        setMode('login');
+        // Step 1: send OTP
+        await postForgotPassword({ email: email.trim(), turnstileToken });
+        setOtpSent(true);
+        setSuccessMsg(`A 6-digit reset code has been sent to ${email.trim()}. Check your inbox.`);
       }
     } catch (err) {
       setTurnstileToken('');
@@ -444,7 +471,57 @@ export function AuthView() {
                   </div>
                 )}
 
-                {mode === 'forgot' && (
+                {/* Forgot password – 2-step OTP UI */}
+                {mode === 'forgot' && otpSent && (
+                  <>
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-3 text-xs font-semibold text-emerald-400">
+                      📧 Code sent to <span className="font-black text-white">{email}</span>. Enter it below.
+                    </div>
+
+                    <AuthField label="6-Digit OTP Code" icon={<KeyRound className="h-4 w-4" />}>
+                      <Input
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="123456"
+                        maxLength={6}
+                        inputMode="numeric"
+                        style={{ color: '#ffffff', backgroundColor: 'rgba(9,14,23,0.7)', letterSpacing: '8px', fontSize: '20px' }}
+                        className="h-12 rounded-xl border-white/10 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30 text-center"
+                      />
+                    </AuthField>
+
+                    <AuthField label="New Password" icon={<Lock className="h-4 w-4" />}>
+                      <div className="relative">
+                        <Input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          autoComplete="new-password"
+                          style={{ color: '#ffffff', backgroundColor: 'rgba(9,14,23,0.7)' }}
+                          className="h-12 w-full rounded-xl border-white/10 pl-10 pr-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-emerald-400 focus:outline-none transition-colors"
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </AuthField>
+
+                    <button
+                      type="button"
+                      onClick={() => { setOtpSent(false); setOtp(''); setNewPassword(''); setError(null); setSuccessMsg(null); }}
+                      className="text-xs font-semibold text-zinc-500 hover:text-emerald-400 transition"
+                    >
+                      ← Resend code or change email
+                    </button>
+                  </>
+                )}
+
+                {mode === 'forgot' && !otpSent && (
                   <div className="flex justify-end mt-1">
                     <button
                       type="button"
@@ -456,13 +533,13 @@ export function AuthView() {
                   </div>
                 )}
 
-                {turnstileSiteKey ? (
+                {!(mode === 'forgot' && otpSent) && (turnstileSiteKey ? (
                   <TurnstileWidget key={turnstileKey} siteKey={turnstileSiteKey} onToken={setTurnstileToken} onError={setError} />
                 ) : (
                   <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400">
                     Cloudflare Turnstile is not configured.
                   </p>
-                )}
+                ))}
 
                 <AnimatePresence>
                   {error && (
@@ -479,7 +556,7 @@ export function AuthView() {
 
                 <Button
                   type="submit"
-                  disabled={!canSubmit}
+                  disabled={(mode === 'forgot' && otpSent) ? submitting : !canSubmit}
                   className="group h-12 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-sm font-black text-[#05080f] shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40 disabled:opacity-40"
                 >
                   {submitting ? (
@@ -490,15 +567,18 @@ export function AuthView() {
                 </Button>
               </form>
 
-              {/* Divider */}
-              <div className="my-5 flex items-center gap-3 text-xs text-zinc-700">
-                <div className="h-px flex-1 bg-white/8" />
-                or continue with
-                <div className="h-px flex-1 bg-white/8" />
-              </div>
+              {/* Divider + Google — hidden on forgot OTP step */}
+              {!(mode === 'forgot' && otpSent) && (
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-white/8" />
+                  <span className="text-xs font-semibold text-zinc-600">or continue with</span>
+                  <div className="h-px flex-1 bg-white/8" />
+                </div>
+              )}
 
               {/* Google */}
               <div className="flex min-h-10 justify-center">
+
                 {canSubmit ? (
                   <GoogleLogin
                     onSuccess={handleGoogleCredential}
@@ -521,6 +601,7 @@ export function AuthView() {
                 <KeyRound className="h-3.5 w-3.5 text-emerald-600" />
                 Protected by Cloudflare Turnstile
               </div>
+
 
               {/* Bottom gradient edge */}
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />

@@ -6,7 +6,6 @@ import {
     Activity,
     ArrowRight,
     BookOpen,
-    BrainCircuit,
     CheckCircle2,
     FileInput,
     FileOutput,
@@ -93,13 +92,12 @@ export function LandingView() {
         <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
             <div className="flex items-center gap-2.5">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-500 shadow-lg shadow-primary/30">
-                <BrainCircuit className="h-5 w-5 text-primary-foreground" />
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary animate-pulse-glow" />
+              <div className="relative flex h-9 w-9 items-center justify-center">
+              <img src="/favicon.png" alt="Aletheia" className="h-9 w-9" style={{ aspectRatio: '1 / 1' }} />
               </div>
               <div className="leading-tight">
-                <h1 className="text-sm font-semibold tracking-tight text-foreground">Aletheia AI</h1>
-                <p className="text-[11px] text-muted-foreground">Investment Intelligence</p>
+                <h1 className="text-sm font-semibold tracking-tight text-foreground">Aletheia</h1>
+                <p className="text-[11px] text-muted-foreground">Research Workspace for Equity Analysis</p>
               </div>
             </div>
 
@@ -160,9 +158,9 @@ export function LandingView() {
                 Multi-agent VC evaluation engine Â· powered by LangGraph
               </div>
               <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-                Aletheia AI:{' '}
+                <span>Aletheia</span>{' '}
                 <span className="bg-gradient-to-r from-primary via-teal-400 to-emerald-400 bg-clip-text text-transparent">
-                  Autonomous Investment Intelligence
+                  Research Workspace for Equity Analysis
                 </span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
@@ -348,8 +346,8 @@ export function LandingView() {
         <footer className="border-t border-border/60 py-8">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
             <div className="flex items-center gap-2">
-              <BrainCircuit className="h-4 w-4 text-primary" />
-              <span>Aletheia AI â€” Autonomous Investment Intelligence</span>
+              <img src="/favicon.png" alt="Aletheia" className="h-4 w-4" style={{ aspectRatio: '1 / 1' }} />
+              <span>Aletheia â€” Research Workspace for Equity Analysis</span>
             </div>
             <p>For research and educational use only. Not investment advice.</p>
           </div>

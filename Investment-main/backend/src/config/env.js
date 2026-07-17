@@ -60,7 +60,13 @@ const envSchema = z.object({
   NEWS_API_KEY: z
     .string()
     .min(1, "NEWS_API_KEY is required"),
+
+  // Resend (Password reset emails)
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM: z.string().optional(),
+  RESEND_TO_OVERRIDE: z.string().optional(),
 });
+
 
 const parsed = envSchema.safeParse(process.env);
 

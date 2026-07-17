@@ -4,6 +4,7 @@ const {
   emailSignup,
   emailLogin,
   forgotPassword,
+  verifyOTP,
   updateProfile,
   updatePassword,
   deleteAccount,
@@ -18,6 +19,7 @@ router.post('/google', googleLogin);
 router.post('/signup', emailSignup);
 router.post('/login', emailLogin);
 router.post('/forgot-password', forgotPassword);
+router.post('/verify-otp', verifyOTP);
 
 // Protected profile/auth operations
 router.post('/update-profile', requireAuth, updateProfile);

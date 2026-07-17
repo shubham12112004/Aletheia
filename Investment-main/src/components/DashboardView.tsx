@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, BrainCircuit, ChevronDown, Clock3, Database, Globe2,
+  Bell, ChevronDown, Clock3, Database, Globe2,
   PlayCircle, Search, Settings, SlidersHorizontal, TrendingUp, User, X,
   Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
   Camera, LogOut
@@ -183,12 +183,12 @@ export function DashboardView() {
         <div className="mx-auto flex h-16 max-w-[1360px] items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/25">
-              <BrainCircuit className="h-5 w-5" />
+            <div className="relative flex h-10 w-10 items-center justify-center">
+              <img src="/favicon.png" alt="Aletheia" className="h-10 w-10" style={{ aspectRatio: '1 / 1' }} />
             </div>
             <div>
-              <h1 className="text-sm font-black tracking-tight text-white">Aletheia AI</h1>
-              <p className="text-[11px] text-zinc-500">Autonomous Market Intelligence</p>
+              <h1 className="text-sm font-black tracking-tight text-white">Aletheia</h1>
+              <p className="text-[11px] text-zinc-500">Research Workspace for Equity Analysis</p>
             </div>
           </div>
 
@@ -427,7 +427,7 @@ function DashboardPane({
           <div>
             <div className="flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-500">Investment Intelligence</p>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-500">Research Workspace for Equity Analysis</p>
             </div>
             <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
               Research any company,{' '}
@@ -1108,7 +1108,7 @@ function SettingsPane({
             </Button>
           </SettingBlock>
 
-          <SettingBlock icon={BrainCircuit} title="Analysis Depth" subtitle="Control agent execution scope and depth">
+          <SettingBlock icon={Database} title="Analysis Depth" subtitle="Control agent execution scope and depth">
             <SegmentedControl value={analysisDepth} options={[['fast', 'Fast'], ['deep', 'Deep']]} onChange={(v) => setAnalysisDepth(v as AnalysisDepth)} />
           </SettingBlock>
           <SettingBlock icon={SlidersHorizontal} title="Runtime Options" subtitle="Manage interface updates and state tracking">
@@ -1319,3 +1319,4 @@ function getSimilarTickers(ticker: string) {
 }
 
 const fallbackNews = [{ title: 'Research sources will appear here', snippet: 'News cards are populated from citations after the backend run completes.', timestamp: '--', url: '#', source: 'AI Research' }];
+

@@ -61,7 +61,18 @@ export async function postForgotPassword(payload: unknown) {
   });
   const data = await response.json();
   if (!response.ok || data.success === false) throw new Error(data.message ?? 'Password reset failed.');
-  return data.data as { tempPassword?: string };
+  return data;
+}
+
+export async function postVerifyOTP(payload: { email: string; otp: string; newPassword: string }) {
+  const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok || data.success === false) throw new Error(data.message ?? 'OTP verification failed.');
+  return data;
 }
 
 export async function postUpdateProfile(payload: unknown, token: string | null) {

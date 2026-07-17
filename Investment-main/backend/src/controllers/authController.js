@@ -1,9 +1,11 @@
 const { z } = require('zod');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const OTP = require('../models/OTP');
 const { verifyGoogleIdToken } = require('../services/googleOAuthService');
 const { verifyTurnstileToken } = require('../services/turnstileService');
 const { signToken } = require('../services/jwtService');
+const { sendPasswordResetOTP } = require('../services/emailService');
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
@@ -33,6 +35,12 @@ const loginSchema = z.object({
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
   turnstileToken: z.string().min(1),
+});
+
+const verifyOTPSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6),
+  newPassword: z.string().min(6),
 });
 
 const updateProfileSchema = z.object({
@@ -126,7 +134,7 @@ const emailLogin = asyncHandler(async (req, res) => {
   return success(res, { user: userObj, token }, 'Logged in successfully');
 });
 
-// Forgot password reset (Mock email flow + direct update for demo workspace)
+// Forgot password — sends real OTP email via Resend
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email, turnstileToken } = forgotPasswordSchema.parse(req.body);
 
@@ -134,15 +142,53 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
-    throw new AppError('User not found with this email address.', 404);
+    // Return success anyway to prevent email enumeration
+    return success(res, null, 'If that email exists, a reset code has been sent.');
   }
 
-  // Reset to a default secure password for the workspace demo flow
-  const tempPassword = 'reset' + Math.floor(100000 + Math.random() * 900000);
-  user.password = await bcrypt.hash(tempPassword, 10);
+  // Generate a 6-digit OTP
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  // Invalidate any previous OTPs for this email
+  await OTP.deleteMany({ email: email.toLowerCase() });
+
+  // Save OTP to DB
+  await OTP.create({ email: email.toLowerCase(), otp, expiresAt });
+
+  // Send real email via Resend
+  await sendPasswordResetOTP(email.toLowerCase(), otp, user.name || 'User');
+
+  return success(res, null, 'A 6-digit reset code has been sent to your email.');
+});
+
+// Verify OTP and set new password
+const verifyOTP = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = verifyOTPSchema.parse(req.body);
+
+  const record = await OTP.findOne({ email: email.toLowerCase(), otp, used: false });
+
+  if (!record) {
+    throw new AppError('Invalid or expired OTP code.', 400);
+  }
+
+  if (record.expiresAt < new Date()) {
+    await OTP.deleteOne({ _id: record._id });
+    throw new AppError('This OTP has expired. Please request a new one.', 400);
+  }
+
+  // Mark OTP as used
+  record.used = true;
+  await record.save();
+
+  // Update user password
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) throw new AppError('User not found.', 404);
+
+  user.password = await bcrypt.hash(newPassword, 10);
   await user.save();
 
-  return success(res, { tempPassword }, `Password reset. Temporary password generated: ${tempPassword}`);
+  return success(res, null, 'Password has been reset successfully. You can now sign in.');
 });
 
 // Update Profile
@@ -218,6 +264,7 @@ module.exports = {
   emailSignup,
   emailLogin,
   forgotPassword,
+  verifyOTP,
   updateProfile,
   updatePassword,
   deleteAccount,
