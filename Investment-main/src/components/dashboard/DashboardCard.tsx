@@ -5,19 +5,24 @@ type DashboardCardProps = {
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  glow?: boolean;
 };
 
-export function DashboardCard({ children, className, delay = 0 }: DashboardCardProps) {
+export function DashboardCard({ children, className, delay = 0, glow = false }: DashboardCardProps) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay, ease: 'easeOut' }}
       className={cn(
-        'rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_12px_35px_rgba(15,23,42,0.07)] backdrop-blur-sm transition-shadow duration-300 hover:shadow-[0_18px_45px_rgba(15,23,42,0.10)] sm:p-6',
+        'group relative overflow-hidden rounded-3xl border border-white/8 bg-white/4 p-5 backdrop-blur-sm transition-all duration-300',
+        'hover:border-white/12 hover:bg-white/6',
+        glow && 'shadow-emerald-glow',
         className
       )}
     >
+      {/* Gradient inner border top */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       {children}
     </motion.section>
   );

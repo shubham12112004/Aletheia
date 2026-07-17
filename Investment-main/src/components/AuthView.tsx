@@ -1,14 +1,29 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
-import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, KeyRound, Loader2, Lock, Mail, ShieldCheck, User } from 'lucide-react';
+import {
+  ArrowLeft, ArrowRight, BrainCircuit, KeyRound, Loader2,
+  Lock, Mail, ShieldCheck, Sparkles, TrendingUp, User, Zap, CheckCircle2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { useAuth } from '@/context/AuthContext';
-import { postGoogleLogin, verifyTurnstile } from '@/lib/api';
+import { postGoogleLogin, postSignup, postEmailLogin, postForgotPassword } from '@/lib/api';
 
-type Mode = 'login' | 'signup';
-const trustPoints = ['Live market intelligence', 'Evidence-backed reports', 'Private research workspace'];
+type Mode = 'login' | 'signup' | 'forgot';
+
+const features = [
+  { icon: TrendingUp, label: 'Live market intelligence', desc: 'Real-time financial data from global markets' },
+  { icon: Zap, label: 'Evidence-backed reports', desc: 'AI analysis grounded in verifiable sources' },
+  { icon: ShieldCheck, label: 'Private research workspace', desc: 'Your research, secured and private' },
+];
+
+const stats = [
+  { value: '11', label: 'AI Nodes' },
+  { value: '< 90s', label: 'Per Report' },
+  { value: '6+', label: 'Data Sources' },
+];
 
 export function AuthView() {
   const { authMode, setAuthMode, setSession, navigate } = useAuth();
@@ -17,35 +32,107 @@ export function AuthView() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileKey, setTurnstileKey] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITEKEY as string | undefined;
   const hasGoogleConfig = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const canSubmit = Boolean(turnstileSiteKey && turnstileToken && !submitting);
-  const ctaLabel = useMemo(() => (mode === 'login' ? 'Enter workspace' : 'Create workspace'), [mode]);
+  
+  const ctaLabel = useMemo(() => {
+    if (mode === 'login') return 'Enter workspace';
+    if (mode === 'signup') return 'Create workspace';
+    return 'Send reset password';
+  }, [mode]);
 
-  useEffect(() => setMode(authMode === 'register' ? 'signup' : 'login'), [authMode]);
+  useEffect(() => {
+    setMode(authMode === 'register' ? 'signup' : authMode === 'reset' ? 'forgot' : 'login');
+  }, [authMode]);
+
+  // Animated particle canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    const particles: { x: number; y: number; vx: number; vy: number; r: number; a: number }[] = [];
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 1.5 + 0.5,
+        a: Math.random(),
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((p) => {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(52, 211, 153, ${p.a * 0.4})`;
+        ctx.fill();
+      });
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+  }, []);
 
   const switchMode = (nextMode: Mode) => {
-    setMode(nextMode); setAuthMode(nextMode === 'login' ? 'login' : 'register'); setError(null); setTurnstileToken(''); setTurnstileKey((value) => value + 1);
-  };
-
-  const establishSession = (nextEmail: string, nextName?: string) => {
-    const displayName = nextName?.trim() || nextEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-    setSession({ token: `tok_${crypto.randomUUID()}`, user: { email: nextEmail, name: displayName || 'Analyst', provider: 'email' } });
+    setMode(nextMode);
+    setAuthMode(nextMode === 'login' ? 'login' : nextMode === 'signup' ? 'register' : 'reset');
+    setError(null);
+    setSuccessMsg(null);
+    setTurnstileToken('');
+    setTurnstileKey((v) => v + 1);
   };
 
   const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault(); setError(null);
+    event.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Enter a valid email address.');
-    if (password.length < 6) return setError('Password must contain at least 6 characters.');
+    if (mode !== 'forgot' && password.length < 6) return setError('Password must contain at least 6 characters.');
     if (mode === 'signup' && !name.trim()) return setError('Enter your full name.');
     if (!turnstileSiteKey || !turnstileToken) return setError('Complete the Cloudflare security check to continue.');
     setSubmitting(true);
-    try { await verifyTurnstile(turnstileToken); establishSession(email.trim(), mode === 'signup' ? name : undefined); }
-    catch (requestError) { setTurnstileToken(''); setTurnstileKey((value) => value + 1); setError(requestError instanceof Error ? requestError.message : 'Secure sign-in could not be completed.'); }
-    finally { setSubmitting(false); }
+
+    try {
+      if (mode === 'signup') {
+        const res = await postSignup({ name: name.trim(), email: email.trim(), password, turnstileToken });
+        setSession({ token: res.token, user: { email: res.user.email, name: res.user.name, provider: 'email' } });
+      } else if (mode === 'login') {
+        const res = await postEmailLogin({ email: email.trim(), password, turnstileToken });
+        setSession({ token: res.token, user: { email: res.user.email, name: res.user.name, provider: 'email' } });
+      } else {
+        const res = await postForgotPassword({ email: email.trim(), turnstileToken });
+        setSuccessMsg(`Temporary password generated successfully: ${res.tempPassword}. You can now sign in.`);
+        setMode('login');
+      }
+    } catch (err) {
+      setTurnstileToken('');
+      setTurnstileKey((v) => v + 1);
+      setError(err instanceof Error ? err.message : 'Secure access could not be completed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGoogleCredential = async (credentialResponse: CredentialResponse) => {
@@ -56,18 +143,364 @@ export function AuthView() {
     try {
       const session = await postGoogleLogin(credentialResponse.credential, turnstileToken);
       setSession({ token: session.token, user: { email: session.user.email, name: session.user.name || session.user.email.split('@')[0], provider: 'google' } });
-    } catch (requestError) {
-      setTurnstileToken(''); setTurnstileKey((value) => value + 1);
-      setError(requestError instanceof Error ? requestError.message : 'Google sign-in could not be completed.');
-    } finally { setSubmitting(false); }
+    } catch (err) {
+      setTurnstileToken('');
+      setTurnstileKey((v) => v + 1);
+      setError(err instanceof Error ? err.message : 'Google sign-in could not be completed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  return <main className="min-h-screen bg-[#08111f] px-4 py-5 text-slate-900 sm:p-8"><div className="mx-auto grid min-h-[calc(100vh-40px)] max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-2xl shadow-black/35 lg:grid-cols-[1.05fr_0.95fr]">
-    <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#0a1e3a] via-[#0b3260] to-[#047b86] p-10 text-white lg:flex lg:flex-col"><div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" /><div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" /><div className="relative flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-blue-700 shadow-lg"><BrainCircuit className="h-6 w-6" /></div><div><p className="text-base font-black tracking-tight">Aletheia AI</p><p className="text-xs text-cyan-100/75">Investment intelligence workspace</p></div></div><div className="relative my-auto max-w-md"><p className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-200">Research with conviction</p><h1 className="mt-4 text-5xl font-black leading-[1.02] tracking-tight">Turn market noise into a defensible view.</h1><p className="mt-5 text-base leading-7 text-blue-100/85">Live market data, current evidence, and an AI research workflow in one focused decision desk.</p><div className="mt-9 space-y-3">{trustPoints.map((point) => <div key={point} className="flex items-center gap-3 text-sm font-semibold text-white"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 ring-1 ring-white/20"><CheckCircle2 className="h-4 w-4 text-cyan-200" /></span>{point}</div>)}</div></div><div className="relative flex items-center gap-2 text-xs text-cyan-100/70"><ShieldCheck className="h-4 w-4" />Secure access powered by Cloudflare Turnstile</div></section>
-    <section className="relative flex flex-col justify-center bg-[#f8fafc] p-6 sm:p-10 lg:p-12"><button type="button" onClick={() => navigate('landing')} className="absolute left-5 top-5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 transition hover:text-blue-700"><ArrowLeft className="h-4 w-4" />Back to home</button><div className="mx-auto w-full max-w-sm"><div className="mb-8 flex items-center gap-3 lg:hidden"><div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-white"><BrainCircuit className="h-5 w-5" /></div><div><p className="font-black text-slate-950">Aletheia AI</p><p className="text-xs text-slate-500">Investment intelligence</p></div></div><div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">{(['login', 'signup'] as const).map((item) => <button key={item} type="button" onClick={() => switchMode(item)} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${mode === item ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}>{item === 'login' ? 'Sign in' : 'Create account'}</button>)}</div><h2 className="mt-7 text-3xl font-black tracking-tight text-slate-950">{mode === 'login' ? 'Welcome back.' : 'Build your research desk.'}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{mode === 'login' ? 'Sign in to access your saved company research and live workspace.' : 'Create an account to begin researching public companies.'}</p>
-      <form onSubmit={handleSubmit} className="mt-7 space-y-4">{mode === 'signup' && <Field label="Full name" icon={<User className="h-4 w-4" />}><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Jordan Analyst" autoComplete="name" className="h-12 border-slate-200 bg-white pl-10 shadow-sm" /></Field>}<Field label="Email address" icon={<Mail className="h-4 w-4" />}><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@fund.com" autoComplete="email" className="h-12 border-slate-200 bg-white pl-10 shadow-sm" /></Field><Field label="Password" icon={<Lock className="h-4 w-4" />}><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="h-12 border-slate-200 bg-white pl-10 shadow-sm" /></Field>{turnstileSiteKey ? <TurnstileWidget key={turnstileKey} siteKey={turnstileSiteKey} onToken={setTurnstileToken} onError={setError} /> : <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">Cloudflare Turnstile is not configured.</p>}{error && <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{error}</p>}<Button type="submit" disabled={!canSubmit} className="h-12 w-full rounded-xl bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700">{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Securing access</> : <>{ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></>}</Button></form>
-      <div className="my-5 flex items-center gap-3 text-xs text-slate-400 before:h-px before:flex-1 before:bg-slate-200 after:h-px after:flex-1 after:bg-slate-200">or</div><div className="flex min-h-10 justify-center">{canSubmit ? <GoogleLogin onSuccess={handleGoogleCredential} onError={() => setError('Google sign-in was cancelled or unavailable.')} theme="outline" size="large" text={mode === 'signup' ? 'signup_with' : 'signin_with'} shape="rectangular" width="320" /> : <p className="text-xs font-semibold text-slate-400">Complete Cloudflare verification to enable Google {mode === 'signup' ? 'sign-up' : 'sign-in'}.</p>}</div><div className="mt-7 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500"><KeyRound className="h-3.5 w-3.5 text-blue-600" />Protected by Cloudflare Turnstile</div></div></section>
-  </div></main>;
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#05080f]">
+      {/* Aurora background */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="animate-mesh-drift absolute -left-32 -top-32 h-[600px] w-[600px] rounded-full bg-emerald-500/8 blur-[120px]" />
+        <div className="animate-mesh-drift absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-blue-500/8 blur-[120px]" style={{ animationDelay: '-7s' }} />
+        <div className="absolute left-1/2 top-1/3 h-[400px] w-[400px] -translate-x-1/2 rounded-full bg-emerald-400/5 blur-[100px]" />
+        {/* Grid overlay */}
+        <div className="absolute inset-0 bg-grid opacity-40" />
+      </div>
+
+      {/* Particle canvas */}
+      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-60" />
+
+      {/* Back button */}
+      <motion.button
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+        type="button"
+        onClick={() => navigate('landing')}
+        className="absolute left-5 top-5 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-400 backdrop-blur-sm transition hover:border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-400"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to home
+      </motion.button>
+
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1200px] px-4 lg:grid-cols-[1fr_460px] lg:gap-16 lg:px-12 xl:gap-24">
+
+        {/* LEFT — Branding panel */}
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="hidden flex-col justify-center py-16 lg:flex"
+        >
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-lg shadow-emerald-500/30">
+              <BrainCircuit className="h-6 w-6 text-white" />
+              <div className="absolute inset-0 rounded-2xl ring-1 ring-emerald-400/30" />
+            </div>
+            <div>
+              <p className="text-base font-black tracking-tight text-white">Aletheia AI</p>
+              <p className="text-xs text-zinc-500">Investment intelligence workspace</p>
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div className="mt-14">
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-500"
+            >
+              Research with conviction
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-4 text-[3.2rem] font-black leading-[1.02] tracking-tight text-white"
+            >
+              Turn market noise<br />into a{' '}
+              <span className="text-gradient-emerald">defensible view.</span>
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mt-5 max-w-md text-base leading-7 text-zinc-400"
+            >
+              Live market data, current evidence, and an AI research workflow in one focused decision desk.
+            </motion.p>
+          </div>
+
+          {/* Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="mt-10 flex items-center gap-8"
+          >
+            {stats.map((s) => (
+              <div key={s.label}>
+                <p className="text-2xl font-black text-emerald-400">{s.value}</p>
+                <p className="mt-0.5 text-xs font-semibold text-zinc-500">{s.label}</p>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Feature list */}
+          <div className="mt-10 space-y-3">
+            {features.map((f, i) => (
+              <motion.div
+                key={f.label}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 + i * 0.08 }}
+                className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/3 p-3.5 backdrop-blur-sm"
+              >
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
+                  <f.icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">{f.label}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">{f.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Security tag */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="mt-10 flex items-center gap-2 text-xs text-zinc-600"
+          >
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            Secured by Cloudflare Turnstile
+          </motion.div>
+        </motion.div>
+
+        {/* RIGHT — Auth card */}
+        <div className="flex items-center justify-center py-10 lg:py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-[420px]"
+          >
+            {/* Card glass panel */}
+            <div className="relative overflow-hidden rounded-3xl border border-white/8 bg-white/4 p-7 shadow-[0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:p-9">
+              {/* Gradient top edge */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+
+              {/* Mobile logo */}
+              <div className="mb-7 flex items-center gap-3 lg:hidden">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/30">
+                  <BrainCircuit className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-black text-white">Aletheia AI</p>
+                  <p className="text-xs text-zinc-500">Investment intelligence</p>
+                </div>
+              </div>
+
+              {/* Mode tabs */}
+              <div className="inline-flex w-full rounded-2xl border border-white/8 bg-white/4 p-1">
+                {(['login', 'signup'] as const).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => switchMode(item)}
+                    className={`flex-1 rounded-xl py-2 text-sm font-bold transition-all duration-200 ${mode === item ? 'bg-emerald-500 text-[#05080f] shadow-md shadow-emerald-500/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    {item === 'login' ? 'Sign in' : 'Create account'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Headline */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={mode}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-7"
+                >
+                  <h2 className="text-2xl font-black tracking-tight text-white">
+                    {mode === 'login' ? 'Welcome back.' : mode === 'signup' ? 'Build your research desk.' : 'Reset your password.'}
+                  </h2>
+                  <p className="mt-1.5 text-sm leading-6 text-zinc-500">
+                    {mode === 'login'
+                      ? 'Sign in to access your saved company research and live workspace.'
+                      : mode === 'signup'
+                      ? 'Create an account to begin researching public companies.'
+                      : 'Enter your email address and we will generate a temporary login password.'}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Success message popup */}
+              <AnimatePresence>
+                {successMsg && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-400 flex items-start gap-2"
+                  >
+                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{successMsg}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                {mode === 'signup' && (
+                  <AuthField label="Full name" icon={<User className="h-4 w-4" />}>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Jordan Analyst"
+                      autoComplete="name"
+                      style={{ color: '#ffffff', backgroundColor: 'rgba(9, 14, 23, 0.7)' }}
+                      className="h-12 rounded-xl border-white/10 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                    />
+                  </AuthField>
+                )}
+                <AuthField label="Email address" icon={<Mail className="h-4 w-4" />}>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@fund.com"
+                    autoComplete="email"
+                    style={{ color: '#ffffff', backgroundColor: 'rgba(9, 14, 23, 0.7)' }}
+                    className="h-12 rounded-xl border-white/10 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                  />
+                </AuthField>
+
+                {mode !== 'forgot' && (
+                  <AuthField label="Password" icon={<Lock className="h-4 w-4" />}>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      style={{ color: '#ffffff', backgroundColor: 'rgba(9, 14, 23, 0.7)' }}
+                      className="h-12 rounded-xl border-white/10 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                    />
+                  </AuthField>
+                )}
+
+                {mode === 'login' && (
+                  <div className="flex justify-end mt-1">
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
+
+                {mode === 'forgot' && (
+                  <div className="flex justify-end mt-1">
+                    <button
+                      type="button"
+                      onClick={() => switchMode('login')}
+                      className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition"
+                    >
+                      Return to sign in
+                    </button>
+                  </div>
+                )}
+
+                {turnstileSiteKey ? (
+                  <TurnstileWidget key={turnstileKey} siteKey={turnstileSiteKey} onToken={setTurnstileToken} onError={setError} />
+                ) : (
+                  <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400">
+                    Cloudflare Turnstile is not configured.
+                  </p>
+                )}
+
+                <AnimatePresence>
+                  {error && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400"
+                    >
+                      {error}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+
+                <Button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="group h-12 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-sm font-black text-[#05080f] shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/40 disabled:opacity-40"
+                >
+                  {submitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing request</>
+                  ) : (
+                    <><Sparkles className="mr-2 h-4 w-4" />{ctaLabel}<ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-0.5" /></>
+                  )}
+                </Button>
+              </form>
+
+              {/* Divider */}
+              <div className="my-5 flex items-center gap-3 text-xs text-zinc-700">
+                <div className="h-px flex-1 bg-white/8" />
+                or continue with
+                <div className="h-px flex-1 bg-white/8" />
+              </div>
+
+              {/* Google */}
+              <div className="flex min-h-10 justify-center">
+                {canSubmit ? (
+                  <GoogleLogin
+                    onSuccess={handleGoogleCredential}
+                    onError={() => setError('Google sign-in was cancelled or unavailable.')}
+                    theme="filled_black"
+                    size="large"
+                    text={mode === 'signup' ? 'signup_with' : 'signin_with'}
+                    shape="rectangular"
+                    width="340"
+                  />
+                ) : (
+                  <p className="text-xs font-semibold text-zinc-600">
+                    Complete Cloudflare verification to enable Google authentication.
+                  </p>
+                )}
+              </div>
+
+              {/* Footer tag */}
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs font-semibold text-zinc-600">
+                <KeyRound className="h-3.5 w-3.5 text-emerald-600" />
+                Protected by Cloudflare Turnstile
+              </div>
+
+              {/* Bottom gradient edge */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
-function Field({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) { return <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span><span className="relative block"><span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">{icon}</span>{children}</span></label>; }
+function AuthField({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-bold text-zinc-400">{label}</span>
+      <span className="relative block">
+        <span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-zinc-500">{icon}</span>
+        {children}
+      </span>
+    </label>
+  );
+}

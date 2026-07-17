@@ -7,72 +7,72 @@ export function MarkdownReport({
   markdown: string;
 }) {
   return (
-    <article className="prose prose-slate max-w-none">
+    <article className="prose prose-invert max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]} // Binds the GFM plugin to parse tables correctly
         components={{
           h1: ({ children }) => (
-            <h1 className="mb-4 mt-0 text-3xl font-black text-slate-950">
+            <h1 className="mb-4 mt-0 text-2xl font-black text-white border-b border-white/10 pb-2">
               {children}
             </h1>
           ),
 
           h2: ({ children }) => (
-            <h2 className="mb-3 mt-6 text-xl font-black text-slate-950">
+            <h2 className="mb-3 mt-6 text-lg font-black text-zinc-100 border-b border-white/5 pb-1">
               {children}
             </h2>
           ),
 
           h3: ({ children }) => (
-            <h3 className="mb-2 mt-5 text-lg font-bold text-slate-800">
+            <h3 className="mb-2 mt-5 text-base font-bold text-zinc-200">
               {children}
             </h3>
           ),
 
           p: ({ children }) => (
-            <p className="mb-3 leading-7 text-slate-700">
+            <p className="mb-3 text-sm leading-7 text-zinc-300 font-normal">
               {children}
             </p>
           ),
 
           ul: ({ children }) => (
-            <ul className="mb-4 list-disc pl-6 text-slate-700">
+            <ul className="mb-4 list-disc pl-6 text-sm text-zinc-300 space-y-1 font-normal">
               {children}
             </ul>
           ),
 
           li: ({ children }) => (
-            <li className="mb-1">
+            <li className="mb-1 text-zinc-300">
               {children}
             </li>
           ),
 
           table: ({ children }) => (
-            <div className="overflow-auto rounded-lg border my-4">
-              <table className="w-full border-collapse">{children}</table>
+            <div className="overflow-auto rounded-xl border border-white/10 my-4 bg-zinc-950/40">
+              <table className="w-full border-collapse text-sm">{children}</table>
             </div>
           ),
 
           th: ({ children }) => (
-            <th className="border bg-slate-100 p-2 text-left font-bold text-slate-900">
+            <th className="border border-white/10 bg-white/5 p-3 text-left font-bold text-zinc-100">
               {children}
             </th>
           ),
 
           td: ({ children }) => (
-            <td className="border p-2 text-slate-700">
+            <td className="border border-white/10 p-3 text-zinc-300 font-normal">
               {children}
             </td>
           ),
 
           strong: ({ children }) => (
-            <strong className="font-bold text-slate-900">
+            <strong className="font-extrabold text-white">
               {children}
             </strong>
           ),
 
           code: ({ children }) => (
-            <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-sm text-slate-900">
+            <code className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-xs text-emerald-400 font-semibold border border-white/5">
               {children}
             </code>
           ),
@@ -82,7 +82,7 @@ export function MarkdownReport({
               href={href || '#'}
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4 hover:text-blue-900"
+              className="font-bold text-emerald-400 underline decoration-emerald-500/30 underline-offset-4 hover:text-emerald-300"
             >
               {children}
             </a>
