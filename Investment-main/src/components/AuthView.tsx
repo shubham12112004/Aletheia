@@ -4,6 +4,7 @@ import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import {
   ArrowLeft, ArrowRight, BrainCircuit, KeyRound, Loader2,
   Lock, Mail, ShieldCheck, Sparkles, TrendingUp, User, Zap, CheckCircle2,
+  Eye, EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,9 @@ export function AuthView() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -110,6 +114,7 @@ export function AuthView() {
     setSuccessMsg(null);
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Enter a valid email address.');
     if (mode !== 'forgot' && password.length < 6) return setError('Password must contain at least 6 characters.');
+    if (mode === 'signup' && password !== confirmPassword) return setError('Passwords do not match.');
     if (mode === 'signup' && !name.trim()) return setError('Enter your full name.');
     if (!turnstileSiteKey || !turnstileToken) return setError('Complete the Cloudflare security check to continue.');
     setSubmitting(true);
@@ -380,17 +385,51 @@ export function AuthView() {
                 </AuthField>
 
                 {mode !== 'forgot' && (
-                  <AuthField label="Password" icon={<Lock className="h-4 w-4" />}>
-                    <Input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                      style={{ color: '#ffffff', backgroundColor: 'rgba(9, 14, 23, 0.7)' }}
-                      className="h-12 rounded-xl border-white/10 pl-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
-                    />
-                  </AuthField>
+                  <>
+                    <AuthField label="Password" icon={<Lock className="h-4 w-4" />}>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                          style={{ color: '#ffffff', backgroundColor: 'rgba(9, 14, 23, 0.7)' }}
+                          className="h-12 w-full rounded-xl border-white/10 pl-10 pr-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-emerald-400 focus:outline-none transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </AuthField>
+                    
+                    {mode === 'signup' && (
+                      <AuthField label="Confirm Password" icon={<Lock className="h-4 w-4" />}>
+                        <div className="relative">
+                          <Input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                            style={{ color: '#ffffff', backgroundColor: 'rgba(9, 14, 23, 0.7)' }}
+                            className="h-12 w-full rounded-xl border-white/10 pl-10 pr-10 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/30"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-emerald-400 focus:outline-none transition-colors"
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </AuthField>
+                    )}
+                  </>
                 )}
 
                 {mode === 'login' && (
