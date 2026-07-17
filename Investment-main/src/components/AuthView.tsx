@@ -1,23 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import {
-  BrainCircuit,
-  ArrowLeft,
-  Mail,
-  Lock,
-  User,
-  ArrowRight,
-  Sparkles,
-  ShieldCheck,
-  Loader2,
-  CheckCircle2,
-  Globe,
-  KeyRound,
-} from 'lucide-react';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
+import { ArrowLeft, ArrowRight, BrainCircuit, CheckCircle2, KeyRound, Loader2, Lock, Mail, ShieldCheck, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TurnstileWidget } from '@/components/TurnstileWidget';
 import { useAuth } from '@/context/AuthContext';
+import { postGoogleLogin, verifyTurnstile } from '@/lib/api';
 
 type Mode = 'login' | 'signup';
+const trustPoints = ['Live market intelligence', 'Evidence-backed reports', 'Private research workspace'];
 
 export function AuthView() {
   const { authMode, setAuthMode, setSession, navigate } = useAuth();
@@ -25,395 +16,58 @@ export function AuthView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  // Check if direct Google integration variable is configured
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileKey, setTurnstileKey] = useState(0);
+  const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITEKEY as string | undefined;
   const hasGoogleConfig = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const canSubmit = Boolean(turnstileSiteKey && turnstileToken && !submitting);
+  const ctaLabel = useMemo(() => (mode === 'login' ? 'Enter workspace' : 'Create workspace'), [mode]);
 
-  useEffect(() => {
-    if (authMode === 'register') setMode('signup');
-    if (authMode === 'reset') setMode('login');
-    if (authMode === 'login') setMode('login');
-  }, [authMode]);
+  useEffect(() => setMode(authMode === 'register' ? 'signup' : 'login'), [authMode]);
 
-  const ctaLabel = useMemo(() => {
-    if (mode === 'signup') return 'Create account';
-    return 'Sign in';
-  }, [mode]);
-
-  const toggleMode = () => {
-    setMode((m) => (m === 'login' ? 'signup' : 'login'));
-    setError(null);
-    setInfo(null);
-    setAuthMode(mode === 'login' ? 'register' : 'login');
+  const switchMode = (nextMode: Mode) => {
+    setMode(nextMode); setAuthMode(nextMode === 'login' ? 'login' : 'register'); setError(null); setTurnstileToken(''); setTurnstileKey((value) => value + 1);
   };
 
-  const setDemoSession = (nextEmail: string, nextName?: string) => {
-    const token = `tok_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-    setSession({
-      token,
-      user: {
-        email: nextEmail,
-        name:
-          nextName?.trim() ||
-          nextEmail.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) ||
-          'Analyst',
-        provider: 'email',
-      },
-    });
+  const establishSession = (nextEmail: string, nextName?: string) => {
+    const displayName = nextName?.trim() || nextEmail.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+    setSession({ token: `tok_${crypto.randomUUID()}`, user: { email: nextEmail, name: displayName || 'Analyst', provider: 'email' } });
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setInfo(null);
-
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    if (mode === 'signup' && !name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault(); setError(null);
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Enter a valid email address.');
+    if (password.length < 6) return setError('Password must contain at least 6 characters.');
+    if (mode === 'signup' && !name.trim()) return setError('Enter your full name.');
+    if (!turnstileSiteKey || !turnstileToken) return setError('Complete the Cloudflare security check to continue.');
     setSubmitting(true);
-
-    // Default email/password inputs fall back to local session processing without Supabase
-    try {
-      setDemoSession(email.trim(), mode === 'signup' ? name.trim() : undefined);
-      setInfo('Logged in via credentials.');
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Authentication failed.');
-    } finally {
-      setSubmitting(false);
-    }
+    try { await verifyTurnstile(turnstileToken); establishSession(email.trim(), mode === 'signup' ? name : undefined); }
+    catch (requestError) { setTurnstileToken(''); setTurnstileKey((value) => value + 1); setError(requestError instanceof Error ? requestError.message : 'Secure sign-in could not be completed.'); }
+    finally { setSubmitting(false); }
   };
 
-  const handleGoogleLogin = async () => {
-    setError(null);
-    setInfo(null);
-
-    if (!hasGoogleConfig) {
-      setError('Google login requires VITE_GOOGLE_CLIENT_ID configured in your environment.');
-      return;
-    }
-
+  const handleGoogleCredential = async (credentialResponse: CredentialResponse) => {
+    if (!hasGoogleConfig) return setError('Google sign-in is not configured for this environment.');
+    if (!turnstileToken) return setError('Complete the Cloudflare security check before continuing with Google.');
+    if (!credentialResponse.credential) return setError('Google did not return an identity token. Please try again.');
     setSubmitting(true);
     try {
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-      const redirectUri = encodeURIComponent(`${window.location.origin}/`);
-      const scope = encodeURIComponent('openid profile email');
-      
-      // Redirect to Google Identity OAuth 2.0 endpoint directly
-      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
-    } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'Google login failed.');
-      setSubmitting(false);
-    }
+      const session = await postGoogleLogin(credentialResponse.credential, turnstileToken);
+      setSession({ token: session.token, user: { email: session.user.email, name: session.user.name || session.user.email.split('@')[0], provider: 'google' } });
+    } catch (requestError) {
+      setTurnstileToken(''); setTurnstileKey((value) => value + 1);
+      setError(requestError instanceof Error ? requestError.message : 'Google sign-in could not be completed.');
+    } finally { setSubmitting(false); }
   };
 
-  const handleForgotPassword = () => {
-    setError(null);
-    setInfo('Password reset emails require a configured mail delivery system.');
-  };
-
-  const authSetupHint = !hasGoogleConfig
-    ? 'Configure VITE_GOOGLE_CLIENT_ID in your environment variables to enable active Google sign-in workflows.'
-    : 'Google Single Sign-On configuration detected and active.';
-
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      {/* Ambient background */}
-      <div className="pointer-events-none fixed inset-0 bg-grid opacity-40" />
-      <div className="pointer-events-none fixed inset-0 bg-radial-fade" />
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-
-      <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-4 py-10 sm:px-6">
-        {/* Back to home */}
-        <button
-          type="button"
-          onClick={() => navigate('landing')}
-          className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground sm:left-6 sm:top-6"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to home
-        </button>
-
-        <div className="grid w-full gap-8 lg:grid-cols-2 lg:items-center">
-          {/* Left: brand / value recap */}
-          <div className="hidden flex-col justify-center lg:flex">
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-500 shadow-lg shadow-primary/30">
-                <BrainCircuit className="h-5 w-5 text-primary-foreground" />
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-primary animate-pulse-glow" />
-              </div>
-              <div className="leading-tight">
-                <h1 className="text-base font-semibold tracking-tight text-foreground">Aletheia AI</h1>
-                <p className="text-xs text-muted-foreground">Autonomous Investment Intelligence</p>
-              </div>
-            </div>
-
-            <h2 className="mt-8 text-balance text-3xl font-bold tracking-tight text-foreground">
-              {mode === 'login' ? 'Welcome back, analyst.' : 'Start researching in minutes.'}
-            </h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-              {mode === 'login'
-                ? 'Sign in to access your secure research workspace — multi-agent workflows, live data aggregation, and macro stress-testing.'
-                : 'Create an account to run deep research on any public company and interrogate the agent on its verdict.'}
-            </p>
-
-            <ul className="mt-8 space-y-3">
-              {[
-                'Multi-agent LangGraph pipeline with self-reflection',
-                'Live filings, pricing, and sentiment via Tavily',
-                'Stress-test across 4 macro regimes',
-                'Interrogate the agent on every verdict',
-              ].map((p) => (
-                <li key={p} className="flex items-center gap-2.5 text-sm text-foreground/80">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                  </span>
-                  {p}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Right: auth card */}
-          <div className="relative">
-            <div className="pointer-events-none absolute -inset-4 rounded-3xl bg-gradient-to-b from-primary/10 to-transparent blur-2xl" />
-            <div className="relative overflow-hidden rounded-2xl border border-border/70 glass-strong p-6 shadow-2xl sm:p-8">
-              <div className="pointer-events-none absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
-
-              {/* Mobile brand */}
-              <div className="mb-6 flex items-center gap-2.5 lg:hidden">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-500 shadow-lg shadow-primary/30">
-                  <BrainCircuit className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div className="leading-tight">
-                  <h1 className="text-sm font-semibold tracking-tight text-foreground">Aletheia AI</h1>
-                  <p className="text-[11px] text-muted-foreground">Investment Intelligence</p>
-                </div>
-              </div>
-
-              {/* Mode toggle */}
-              <div className="mb-6 inline-flex rounded-lg border border-border/70 bg-background/40 p-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setAuthMode('login');
-                    setError(null);
-                    setInfo(null);
-                  }}
-                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
-                    mode === 'login'
-                      ? 'bg-primary text-primary-foreground shadow'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signup');
-                    setAuthMode('register');
-                    setError(null);
-                    setInfo(null);
-                  }}
-                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
-                    mode === 'signup'
-                      ? 'bg-primary text-primary-foreground shadow'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Sign up
-                </button>
-              </div>
-
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
-                {mode === 'login' ? 'Sign in to your workspace' : 'Create your account'}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {mode === 'login'
-                  ? 'Use email, Google, or a reset link to access the secure dashboard.'
-                  : 'Create an account to run deep research in under a minute.'}
-              </p>
-
-              <div className="mt-4 rounded-xl border border-border/70 bg-background/50 p-3 text-xs text-muted-foreground">
-                <div className="mb-2 flex items-center gap-2 text-foreground">
-                  <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                  Secure access
-                </div>
-                <p>{authSetupHint}</p>
-              </div>
-
-              {mode === 'login' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleGoogleLogin}
-                  disabled={submitting}
-                  className="mt-4 h-11 w-full gap-2 rounded-lg border-border/80 bg-background/60 text-sm shadow-sm"
-                >
-                  <Globe className="h-4 w-4" />
-                  Continue with Google
-                </Button>
-              )}
-
-              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                {mode === 'signup' && (
-                  <div className="space-y-1.5">
-                    <label htmlFor="name" className="text-xs font-medium text-muted-foreground">
-                      Full name
-                    </label>
-                    <div className="relative">
-                      <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Jordan Analyst"
-                        className="h-11 rounded-lg border-border/80 bg-background/60 pl-9 text-sm shadow-inner focus-visible:ring-primary/50"
-                        autoComplete="name"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label htmlFor="email" className="text-xs font-medium text-muted-foreground">
-                    Email
-                  </label>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@fund.com"
-                      className="h-11 rounded-lg border-border/80 bg-background/60 pl-9 text-sm shadow-inner focus-visible:ring-primary/50"
-                      autoComplete="email"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="password" className="text-xs font-medium text-muted-foreground">
-                      Password
-                    </label>
-                    {mode === 'login' && (
-                      <button
-                        type="button"
-                        className="text-xs text-primary/80 transition-colors hover:text-primary"
-                        onClick={handleForgotPassword}
-                      >
-                        Forgot?
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="h-11 rounded-lg border-border/80 bg-background/60 pl-9 text-sm shadow-inner focus-visible:ring-primary/50"
-                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    />
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400 animate-fade-in-up">
-                    {error}
-                  </div>
-                )}
-
-                {info && (
-                  <div className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary animate-fade-in-up">
-                    {info}
-                  </div>
-                )}
-
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="group relative h-11 w-full gap-2 overflow-hidden rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-110 disabled:opacity-70"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      {ctaLabel}
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                    </>
-                  )}
-                </Button>
-              </form>
-
-              {mode === 'login' && (
-                <div className="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                  <div className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                    Credentials Authentication
-                  </div>
-                  <div className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background/40 px-3 py-2">
-                    <KeyRound className="h-3.5 w-3.5 text-primary" />
-                    Google sign-in
-                  </div>
-                </div>
-              )}
-
-              <p className="mt-5 text-center text-xs text-muted-foreground">
-                {mode === 'login' ? (
-                  <>
-                    Don&apos;t have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={toggleMode}
-                      className="font-medium text-primary/90 transition-colors hover:text-primary"
-                    >
-                      Sign up
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{' '}
-                    <button
-                      type="button"
-                      onClick={toggleMode}
-                      className="font-medium text-primary/90 transition-colors hover:text-primary"
-                    >
-                      Sign in
-                    </button>
-                  </>
-                )}
-              </p>
-
-              <p className="mt-4 text-center text-[10px] text-muted-foreground">
-                Authentication is handled directly via custom identity provider configuration hooks.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <main className="min-h-screen bg-[#08111f] px-4 py-5 text-slate-900 sm:p-8"><div className="mx-auto grid min-h-[calc(100vh-40px)] max-w-6xl overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-2xl shadow-black/35 lg:grid-cols-[1.05fr_0.95fr]">
+    <section className="relative hidden overflow-hidden bg-gradient-to-br from-[#0a1e3a] via-[#0b3260] to-[#047b86] p-10 text-white lg:flex lg:flex-col"><div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-cyan-300/15 blur-3xl" /><div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-blue-500/25 blur-3xl" /><div className="relative flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-blue-700 shadow-lg"><BrainCircuit className="h-6 w-6" /></div><div><p className="text-base font-black tracking-tight">Aletheia AI</p><p className="text-xs text-cyan-100/75">Investment intelligence workspace</p></div></div><div className="relative my-auto max-w-md"><p className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-200">Research with conviction</p><h1 className="mt-4 text-5xl font-black leading-[1.02] tracking-tight">Turn market noise into a defensible view.</h1><p className="mt-5 text-base leading-7 text-blue-100/85">Live market data, current evidence, and an AI research workflow in one focused decision desk.</p><div className="mt-9 space-y-3">{trustPoints.map((point) => <div key={point} className="flex items-center gap-3 text-sm font-semibold text-white"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 ring-1 ring-white/20"><CheckCircle2 className="h-4 w-4 text-cyan-200" /></span>{point}</div>)}</div></div><div className="relative flex items-center gap-2 text-xs text-cyan-100/70"><ShieldCheck className="h-4 w-4" />Secure access powered by Cloudflare Turnstile</div></section>
+    <section className="relative flex flex-col justify-center bg-[#f8fafc] p-6 sm:p-10 lg:p-12"><button type="button" onClick={() => navigate('landing')} className="absolute left-5 top-5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 transition hover:text-blue-700"><ArrowLeft className="h-4 w-4" />Back to home</button><div className="mx-auto w-full max-w-sm"><div className="mb-8 flex items-center gap-3 lg:hidden"><div className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-white"><BrainCircuit className="h-5 w-5" /></div><div><p className="font-black text-slate-950">Aletheia AI</p><p className="text-xs text-slate-500">Investment intelligence</p></div></div><div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">{(['login', 'signup'] as const).map((item) => <button key={item} type="button" onClick={() => switchMode(item)} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${mode === item ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}>{item === 'login' ? 'Sign in' : 'Create account'}</button>)}</div><h2 className="mt-7 text-3xl font-black tracking-tight text-slate-950">{mode === 'login' ? 'Welcome back.' : 'Build your research desk.'}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{mode === 'login' ? 'Sign in to access your saved company research and live workspace.' : 'Create an account to begin researching public companies.'}</p>
+      <form onSubmit={handleSubmit} className="mt-7 space-y-4">{mode === 'signup' && <Field label="Full name" icon={<User className="h-4 w-4" />}><Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Jordan Analyst" autoComplete="name" className="h-12 border-slate-200 bg-white pl-10 shadow-sm" /></Field>}<Field label="Email address" icon={<Mail className="h-4 w-4" />}><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@fund.com" autoComplete="email" className="h-12 border-slate-200 bg-white pl-10 shadow-sm" /></Field><Field label="Password" icon={<Lock className="h-4 w-4" />}><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="h-12 border-slate-200 bg-white pl-10 shadow-sm" /></Field>{turnstileSiteKey ? <TurnstileWidget key={turnstileKey} siteKey={turnstileSiteKey} onToken={setTurnstileToken} onError={setError} /> : <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">Cloudflare Turnstile is not configured.</p>}{error && <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">{error}</p>}<Button type="submit" disabled={!canSubmit} className="h-12 w-full rounded-xl bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700">{submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Securing access</> : <>{ctaLabel}<ArrowRight className="ml-2 h-4 w-4" /></>}</Button></form>
+      <div className="my-5 flex items-center gap-3 text-xs text-slate-400 before:h-px before:flex-1 before:bg-slate-200 after:h-px after:flex-1 after:bg-slate-200">or</div><div className="flex min-h-10 justify-center">{canSubmit ? <GoogleLogin onSuccess={handleGoogleCredential} onError={() => setError('Google sign-in was cancelled or unavailable.')} theme="outline" size="large" text={mode === 'signup' ? 'signup_with' : 'signin_with'} shape="rectangular" width="320" /> : <p className="text-xs font-semibold text-slate-400">Complete Cloudflare verification to enable Google {mode === 'signup' ? 'sign-up' : 'sign-in'}.</p>}</div><div className="mt-7 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500"><KeyRound className="h-3.5 w-3.5 text-blue-600" />Protected by Cloudflare Turnstile</div></div></section>
+  </div></main>;
 }
+
+function Field({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) { return <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span><span className="relative block"><span className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">{icon}</span>{children}</span></label>; }

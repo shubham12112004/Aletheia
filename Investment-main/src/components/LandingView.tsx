@@ -23,8 +23,9 @@ import {
 declare global {
   interface Window {
     turnstile?: {
+      ready?: (callback: () => void) => void;
       render: (container: HTMLElement | string, options: any) => string;
-      remove: () => void;
+      remove: (widgetId?: string) => void;
     };
   }
 }
@@ -34,7 +35,7 @@ const VALUE_PROPS = [
     icon: Network,
     title: 'Multi-Agent Workflows',
     description:
-      'Powered by LangGraph for resilient self-reflection. Specialist agents score fundamentals, moat, and sentiment in parallel — then a critic agent verifies every claim against primary sources.',
+      'Powered by LangGraph for resilient self-reflection. Specialist agents score fundamentals, moat, and sentiment in parallel â€” then a critic agent verifies every claim against primary sources.',
     points: ['Parallel specialist agents', 'Self-reflection guardrails', 'Verifiable citations'],
   },
   {
@@ -156,7 +157,7 @@ export function LandingView() {
             <div className="mx-auto max-w-3xl text-center">
               <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border/70 glass px-3 py-1 text-xs text-muted-foreground">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                Multi-agent VC evaluation engine · powered by LangGraph
+                Multi-agent VC evaluation engine Â· powered by LangGraph
               </div>
               <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
                 Aletheia AI:{' '}
@@ -166,7 +167,7 @@ export function LandingView() {
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
                 A multi-agent VC evaluation engine that ingests filings, market data, and
-                sentiment — then critiques its own reasoning before returning a clear
+                sentiment â€” then critiques its own reasoning before returning a clear
                 INVEST or PASS call. Stress-test any thesis across macro regimes and
                 interrogate the agent on its verdict.
               </p>
@@ -212,7 +213,7 @@ export function LandingView() {
                 <div className="absolute -left-3 top-8 hidden rounded-lg border border-primary/30 glass px-2.5 py-1.5 text-[10px] text-primary shadow-lg sm:block">
                   <span className="flex items-center gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse-glow" />
-                    critic pass · 4/4
+                    critic pass Â· 4/4
                   </span>
                 </div>
                 <div className="absolute -right-3 bottom-12 hidden rounded-lg border border-border/70 glass px-2.5 py-1.5 text-[10px] text-muted-foreground shadow-lg sm:block">
@@ -348,7 +349,7 @@ export function LandingView() {
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
             <div className="flex items-center gap-2">
               <BrainCircuit className="h-4 w-4 text-primary" />
-              <span>Aletheia AI — Autonomous Investment Intelligence</span>
+              <span>Aletheia AI â€” Autonomous Investment Intelligence</span>
             </div>
             <p>For research and educational use only. Not investment advice.</p>
           </div>

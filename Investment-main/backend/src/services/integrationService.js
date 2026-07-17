@@ -446,140 +446,118 @@ GROQ REPORT
 */
 
 
-exports.generateGroqReport = async({
-    profile,
-    quote,
-    financials,
-    news,
-    web
-})=>{
-
-
-try{
-
-
-const prompt = `
-
-You are a professional CFA investment analyst.
-
-Analyze this company.
-
-PROFILE:
-${JSON.stringify(profile)}
-
-QUOTE:
-${JSON.stringify(quote)}
-
-FINANCIALS:
-${JSON.stringify(financials)}
-
-NEWS:
-${JSON.stringify(news)}
-
-WEB:
-${JSON.stringify(web)}
-
-
-Return ONLY JSON:
-
-{
-"company":"",
-"ticker":"",
-"verdict":"INVEST",
-"confidence":90,
-"executiveSummary":[],
-"pros":[{"text":"reason","weight":"high"}],
-"cons":[{"text":"reason","weight":"medium"}],
-"report":"markdown report"
-}
-
-`;
-
-
-
-const response =
-await groq.chat.completions.create({
-
-model:"llama-3.3-70b-versatile",
-
-messages:[
-
-{
-role:"system",
-content:
-"Return only valid JSON"
-},
-
-{
-role:"user",
-content:prompt
-}
-
-],
-
-temperature:0.2,
-
-max_tokens:4096
-
-});
-
-
-
-let text =
-response.choices[0]
-.message
-.content
-.trim();
-
-
-
-text =
-text.replace(/```json/g,"")
-.replace(/```/g,"")
-.trim();
-
-
-
-return JSON.parse(text);
-
-
-
-}
-catch(error){
-
-
-console.error(
-"Groq Error:",
-error.message
-);
-
-
-
-return {
-
-company:
-profile?.name || "Unknown",
-
-ticker:
-profile?.ticker || "N/A",
-
-verdict:"PASS",
-
-confidence:0,
-
-executiveSummary:[],
-
-pros:[],
-
-cons:[],
-
-report:
-"Unable to generate report"
-
+const trimText = (value, limit = 360) => {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    return text.length > limit ? `${text.slice(0, limit)}…` : text;
 };
 
+function buildResearchContext({ profile, quote, financials, news, web }) {
+    const metrics = financials?.metric || {};
+    const pickMetric = (key) => metrics[key] ?? null;
 
+    return {
+        profile: {
+            name: profile?.name || null,
+            ticker: profile?.ticker || null,
+            industry: profile?.finnhubIndustry || null,
+            country: profile?.country || null,
+            marketCapitalization: profile?.marketCapitalization ?? null,
+        },
+        quote: {
+            current: quote?.c ?? null,
+            change: quote?.d ?? null,
+            changePercent: quote?.dp ?? null,
+            dayHigh: quote?.h ?? null,
+            dayLow: quote?.l ?? null,
+            previousClose: quote?.pc ?? null,
+        },
+        metrics: {
+            peTTM: pickMetric('peTTM'),
+            forwardPE: pickMetric('forwardPE'),
+            epsTTM: pickMetric('epsTTM'),
+            beta: pickMetric('beta'),
+            dividendYield: pickMetric('dividendYieldIndicatedAnnual'),
+            revenueGrowthTTMYoy: pickMetric('revenueGrowthTTMYoy'),
+            epsGrowthTTMYoy: pickMetric('epsGrowthTTMYoy'),
+            netProfitMarginTTM: pickMetric('netProfitMarginTTM'),
+            debtToEquity: pickMetric('totalDebt/totalEquityQuarterly'),
+            week52High: pickMetric('52WeekHigh'),
+            week52Low: pickMetric('52WeekLow'),
+            week52Return: pickMetric('52WeekPriceReturnDaily'),
+        },
+        news: (Array.isArray(news) ? news : []).slice(0, 5).map((article) => ({
+            title: trimText(article?.title, 180),
+            source: trimText(article?.source?.name, 80),
+            publishedAt: article?.publishedAt || null,
+            description: trimText(article?.description, 280),
+        })),
+        web: (Array.isArray(web) ? web : []).slice(0, 3).map((result) => ({
+            title: trimText(result?.title, 180),
+            url: result?.url || null,
+            content: trimText(result?.content || result?.snippet, 360),
+        })),
+    };
 }
 
+function buildFallbackReport(context) {
+    const { profile, quote, metrics, news } = context;
+    const price = quote.current != null ? `$${Number(quote.current).toFixed(2)}` : 'unavailable';
+    const range = metrics.week52Low != null && metrics.week52High != null
+        ? `$${Number(metrics.week52Low).toFixed(2)}–$${Number(metrics.week52High).toFixed(2)}`
+        : 'unavailable';
+    const pe = metrics.peTTM != null ? Number(metrics.peTTM).toFixed(2) : 'unavailable';
+    const return52 = metrics.week52Return != null ? `${Number(metrics.week52Return).toFixed(2)}%` : 'unavailable';
 
+    return {
+        company: profile.name || 'Unknown',
+        ticker: profile.ticker || 'N/A',
+        verdict: 'PASS',
+        confidence: 0,
+        executiveSummary: [
+            `${profile.name || 'This company'} is trading at ${price}.`,
+            `The reported 52-week range is ${range}, with a 52-week return of ${return52}.`,
+            `Reported trailing P/E is ${pe}. Review valuation, risk, and source evidence before investing.`,
+        ],
+        pros: metrics.revenueGrowthTTMYoy != null && Number(metrics.revenueGrowthTTMYoy) > 0
+            ? [{ text: `Revenue growth is ${Number(metrics.revenueGrowthTTMYoy).toFixed(2)}% year over year.`, weight: 'medium' }]
+            : [],
+        cons: [{ text: 'The AI narrative service is temporarily unavailable; this report uses verified market data only.', weight: 'high' }],
+        citations: news.map((article) => ({
+            title: article.title || 'Market news',
+            source: article.source || 'News API',
+            url: '#',
+            timestamp: article.publishedAt || '',
+            snippet: article.description || '',
+        })),
+        report: `# ${profile.name || 'Company'} Research Snapshot\n\n## Market Data\n- Current price: ${price}\n- 52-week range: ${range}\n- 52-week return: ${return52}\n- Trailing P/E: ${pe}\n\n## Status\nThe AI narrative could not be generated for this request. The figures above are live data from the research sources and should be used as a starting point for further due diligence.`,
+    };
+}
+
+exports.generateGroqReport = async ({ profile, quote, financials, news, web }) => {
+    const context = buildResearchContext({ profile, quote, financials, news, web });
+
+    try {
+        const prompt = `You are a professional CFA investment analyst. Analyze the following compact, verified dataset. Do not invent facts. Return only valid JSON matching this schema:\n\n{\n  "company":"",\n  "ticker":"",\n  "verdict":"INVEST" | "PASS",\n  "confidence":0,\n  "executiveSummary":[""],\n  "pros":[{"text":"reason","weight":"high" | "medium" | "low"}],\n  "cons":[{"text":"reason","weight":"high" | "medium" | "low"}],\n  "citations":[],\n  "report":"markdown report"\n}\n\nDATA:\n${JSON.stringify(context)}`;
+
+        const response = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+                { role: 'system', content: 'Return only valid JSON. Keep the report concise and cite only supplied sources.' },
+                { role: 'user', content: prompt },
+            ],
+            temperature: 0.2,
+            max_tokens: 1800,
+        });
+
+        const text = (response.choices[0]?.message?.content || '')
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim();
+
+        if (!text) throw new Error('Groq returned an empty report.');
+        return JSON.parse(text);
+    } catch (error) {
+        console.error('Groq Error:', error.message);
+        return buildFallbackReport(context);
+    }
 };

@@ -6,6 +6,10 @@ const { signToken } = require('../services/jwtService');
 const asyncHandler = require('../utils/asyncHandler');
 const { success } = require('../utils/apiResponse');
 
+const turnstileSchema = z.object({
+  turnstileToken: z.string().min(1),
+});
+
 const googleLoginSchema = z.object({
   idToken: z.string().min(1),
   turnstileToken: z.string().min(1),
@@ -31,4 +35,10 @@ const googleLogin = asyncHandler(async (req, res) => {
   return success(res, { user, token }, 'Authenticated');
 });
 
-module.exports = { googleLogin };
+const verifyTurnstile = asyncHandler(async (req, res) => {
+  const { turnstileToken } = turnstileSchema.parse(req.body);
+  await verifyTurnstileToken(turnstileToken, req.ip);
+  return success(res, null, 'Cloudflare verification passed');
+});
+
+module.exports = { googleLogin, verifyTurnstile };

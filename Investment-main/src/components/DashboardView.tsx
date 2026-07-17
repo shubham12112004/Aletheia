@@ -32,7 +32,7 @@ const navItems: Array<{ id: ActiveTab; label: string }> = [
 const watchlist: any[] = [];
 
 export function DashboardView() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask } = useResearchAgent();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [company, setCompany] = useState('');
@@ -40,6 +40,8 @@ export function DashboardView() {
   const [focus] = useState<FocusFilters>({ regulatory: true, insider: false });
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(2);
   const [history, setHistory] = useState<ResearchSnapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [apiEndpoint, setApiEndpoint] = useState<ApiEndpoint>('production');
@@ -82,7 +84,7 @@ export function DashboardView() {
             {navItems.map((item) => <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} className={cn('rounded-full px-3 py-2 text-sm font-semibold transition', activeTab === item.id ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-slate-500 hover:bg-blue-50 hover:text-blue-700')}>{item.label}</button>)}
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="hidden rounded-full text-slate-500 hover:bg-slate-100 sm:inline-flex"><Bell className="h-4 w-4" /></Button>
+            <div className="relative hidden sm:block"><Button type="button" variant="ghost" size="icon" onClick={() => setNotificationsOpen((value) => !value)} className="relative rounded-full text-slate-500 hover:bg-slate-100"><Bell className="h-4 w-4" />{unreadNotifications > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white" />}</Button>{notificationsOpen && <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl"><div className="flex items-center justify-between"><p className="font-black text-slate-900">Notifications</p><button type="button" onClick={() => setUnreadNotifications(0)} className="text-xs font-bold text-blue-600">Mark read</button></div><div className="mt-3 space-y-2 text-sm"><div className="rounded-xl bg-blue-50 p-3 text-slate-700"><p className="font-bold">Workspace online</p><p className="mt-1 text-xs text-slate-500">Research services are connected.</p></div><div className="rounded-xl bg-slate-50 p-3 text-slate-700"><p className="font-bold">Security enabled</p><p className="mt-1 text-xs text-slate-500">Cloudflare protection is active for sign-in.</p></div></div></div>}</div>
             <div className="relative">
               <button type="button" onClick={() => setMenuOpen((value) => !value)} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 shadow-sm transition hover:border-blue-200 hover:shadow-md"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-xs font-black text-white">{initials}</span><span className="hidden max-w-[140px] truncate text-sm font-semibold text-slate-700 sm:block">{user?.name || 'Profile'}</span><ChevronDown className="h-4 w-4 text-slate-400" /></button>
               {menuOpen && <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
@@ -102,7 +104,7 @@ export function DashboardView() {
         {activeTab === 'watchlist' && <WatchlistPane onResearch={(ticker) => handleSearch(ticker)} />}
         {activeTab === 'settings' && <SettingsPane apiEndpoint={apiEndpoint} setApiEndpoint={setApiEndpoint} analysisDepth={analysisDepth} setAnalysisDepth={setAnalysisDepth} quotaAlerts={quotaAlerts} setQuotaAlerts={setQuotaAlerts} socketProgress={socketProgress} setSocketProgress={setSocketProgress} />}
       </main>
-      {profileOpen && <ProfileModal user={user} tokenState="active" onClose={() => setProfileOpen(false)} />}
+      {profileOpen && <ProfileModal user={user} tokenState="active" onClose={() => setProfileOpen(false)} onSave={updateUser} />}
     </div>
   );
 }
@@ -112,7 +114,7 @@ function DashboardPane({ company, setCompany, running, activeDataset, steps, pro
     <DashboardCard className="mb-5 p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-blue-600">Dashboard</p><h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Investment Intelligence Desk</h2><p className="mt-1 max-w-2xl text-sm text-slate-500">Search any company name or ticker symbol to monitor live financial structures built by the agent network.</p></div>{activeDataset && <Button onClick={onReset} variant="outline" className="rounded-full border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50">New Research</Button>}</div>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row"><div className="relative flex-1"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={company} onChange={(event) => setCompany(event.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { onSearch(); } }} disabled={running} placeholder="Enter Ticker or Company Name (e.g., Apple, AAPL, Tesla, NVDA)..." className="h-12 rounded-2xl border-slate-200 bg-slate-50 pl-11 text-base shadow-inner focus-visible:ring-blue-500" /></div><motion.div whileHover={{ scale: running ? 1 : 1.02 }} whileTap={{ scale: running ? 1 : 0.98 }}><Button onClick={() => onSearch()} disabled={!company.trim() || running} className="h-12 w-full rounded-2xl bg-blue-600 px-8 font-black text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 hover:shadow-blue-500/35 sm:w-auto">{running ? 'Researching...' : 'Search'}</Button></motion.div></div>
     </DashboardCard>
-    {running ? <div className="flex min-h-[calc(100vh-210px)] items-center justify-center py-8"><ProcessingPipeline steps={steps as any} progress={progress} phase={phase} /></div> : activeDataset ? <ResearchDashboard snapshot={activeDataset} steps={steps} /> : <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]"><DashboardCard><SectionTitle title="Agent Network Graph" subtitle="Data ingestion tracking steps display here during execution lifecycle" /><div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950"><ResearchGraphView steps={steps as any} /></div></DashboardCard><EmptyDashboard /></div>}
+    {running ? <div className="flex items-center justify-center py-3 sm:py-5"><ProcessingPipeline steps={steps as any} progress={progress} phase={phase} /></div> : activeDataset ? <ResearchDashboard snapshot={activeDataset} steps={steps} /> : <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]"><DashboardCard><SectionTitle title="Agent Network Graph" subtitle="Data ingestion tracking steps display here during execution lifecycle" /><div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950"><ResearchGraphView steps={steps as any} /></div></DashboardCard><EmptyDashboard /></div>}
   </>;
 }
 
@@ -125,7 +127,7 @@ function ResearchDashboard({ snapshot, steps }: { snapshot: ResearchSnapshot; st
     <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
       <DashboardCard delay={0.01}>
         <SectionTitle title="Agent Network Graph" subtitle="Latest state transitions within the research network lifecycle" />
-        {/* âœ… Fix: Changed steps={[]} to steps={steps} to visualize running parameters cleanly */}
+        {/* ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Fix: Changed steps={[]} to steps={steps} to visualize running parameters cleanly */}
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950"><ResearchGraphView steps={steps} /></div>
       </DashboardCard>
       <div className="grid gap-5 lg:grid-cols-2">
@@ -154,7 +156,7 @@ function ResearchDashboard({ snapshot, steps }: { snapshot: ResearchSnapshot; st
               <div className="rounded-2xl bg-blue-50 p-3 text-blue-700"><TrendingUp className="h-6 w-6" /></div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Score label="Confidence Index" value={result.confidence || 0} color="blue" />
+              <Score label="Research Confidence" value={result.confidence || 0} color="blue" />
             </div>
           </div>
         </DashboardCard>
@@ -200,11 +202,12 @@ function SettingsPane({ apiEndpoint, setApiEndpoint, analysisDepth, setAnalysisD
   return <div className="grid grid-cols-1 gap-5"><DashboardCard><SectionTitle title="Workspace Configuration" subtitle="Configure integration target endpoints and processing loops" /><div className="mt-5 space-y-4"><SettingBlock icon={Globe2} title="Active Network Node Route" subtitle="Switch operational configuration variables safely across deployment layers"><SegmentedControl value={apiEndpoint} options={[[ 'production', 'Production Env' ], [ 'staging', 'Staging Link' ]]} onChange={(value) => setApiEndpoint(value as ApiEndpoint)} /></SettingBlock><SettingBlock icon={BrainCircuit} title="Multi-Agent Execution Controls" subtitle="Expand evaluation parameters across standard deep logic trees"><SegmentedControl value={analysisDepth} options={[[ 'fast', 'Fast Verification' ], [ 'deep', 'Deep Analysis' ]]} onChange={(value) => setAnalysisDepth(value as AnalysisDepth)} /></SettingBlock><SettingBlock icon={SlidersHorizontal} title="Runtime Interface Options" subtitle="Manage layout updates and structural state tracking"><div className="grid gap-3 sm:grid-cols-2"><Toggle label="Socket streaming tracking instances" checked={socketProgress} onChange={setSocketProgress} /><Toggle label="System message verification alerts" checked={quotaAlerts} onChange={setQuotaAlerts} /></div></SettingBlock></div></DashboardCard></div>;
 }
 
-function ProfileModal({ user, tokenState, onClose }: { user: any; tokenState: string; onClose: () => void }) {
-  const rows = [[ 'Identity Record', user?.name || 'Unknown' ], [ 'Electronic Mail', user?.email || 'Unknown' ], [ 'Provider Route', user?.provider || 'External' ], [ 'Session State Key', tokenState ]];
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"><motion.div initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.22em] text-blue-600">Secure Workstation Record</p><h3 className="mt-1 text-xl font-black text-slate-950">Identity Registry Data</h3></div><Button onClick={onClose} variant="ghost" size="icon" className="rounded-full"><X className="h-4 w-4" /></Button></div><div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">{rows.map(([label, value]) => <div key={label} className="grid grid-cols-[140px_1fr] border-b border-slate-100 last:border-0"><div className="bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wider text-slate-400">{label}</div><div className="min-w-0 break-words px-4 py-3 text-sm font-semibold text-slate-700">{value}</div></div>)}</div></motion.div></div>;
+function ProfileModal({ user, tokenState, onClose, onSave }: { user: any; tokenState: string; onClose: () => void; onSave: (updates: { name?: string; email?: string }) => void }) {
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const save = () => { if (!name.trim() || !email.trim()) return; onSave({ name: name.trim(), email: email.trim() }); onClose(); };
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm"><motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Profile settings</p><h3 className="mt-1 text-xl font-black text-slate-950">Edit workspace identity</h3></div><Button onClick={onClose} variant="ghost" size="icon" className="rounded-full"><X className="h-4 w-4" /></Button></div><div className="mt-6 space-y-4"><label className="block text-sm font-bold text-slate-700">Display name<Input value={name} onChange={(event) => setName(event.target.value)} className="mt-2 h-11 rounded-xl border-slate-200" /></label><label className="block text-sm font-bold text-slate-700">Email address<Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 h-11 rounded-xl border-slate-200" /></label><p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">Session: <span className="font-bold text-emerald-600">{tokenState}</span></p><div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose} className="rounded-xl">Cancel</Button><Button onClick={save} className="rounded-xl bg-blue-600 text-white hover:bg-blue-700">Save changes</Button></div></div></motion.div></div>;
 }
-
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) { return <div><h3 className="text-lg font-black tracking-tight text-slate-950">{title}</h3><p className="mt-1 text-sm text-slate-500">{subtitle}</p></div>; }
 function Info({ label, value }: { label: string; value: string }) { return <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 truncate text-sm font-bold text-slate-900">{value}</p></div>; }
 function Score({ label, value, color }: { label: string; value: number; color: 'blue' | 'red' | 'green' }) { const colors = { blue: 'bg-blue-600', red: 'bg-red-500', green: 'bg-emerald-500' }; return <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 text-xl font-black text-slate-950">{value}%</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} className={`h-full ${colors[color]}`} /></div></div>; }

@@ -1,4 +1,20 @@
 const integration = require("./integrationService");
+function calculateDataConfidence({ profile, quote, financials, news, web }) {
+    const metrics = financials?.metric || {};
+    const hasNumber = (value) => Number.isFinite(Number(value));
+    let score = 0;
+
+    if (profile?.name && profile?.ticker) score += 15;
+    if (hasNumber(quote?.c) && Number(quote.c) > 0) score += 20;
+    if (hasNumber(quote?.h) && hasNumber(quote?.l)) score += 10;
+    if (hasNumber(metrics.peTTM) || hasNumber(metrics.peBasicExclExtraTTM)) score += 15;
+    if (hasNumber(metrics.epsTTM) || hasNumber(metrics.epsBasicExclExtraItemsTTM)) score += 15;
+    if (hasNumber(metrics["52WeekHigh"]) && hasNumber(metrics["52WeekLow"])) score += 10;
+    if (Array.isArray(news) && news.length > 0) score += 10;
+    if (Array.isArray(web) && web.length > 0) score += 5;
+
+    return Math.min(score, 95);
+}
 
 /**
  * Complete AI Investment Research Pipeline
@@ -102,6 +118,13 @@ exports.executeResearch = async (
 
 
 
+        const dataConfidence = calculateDataConfidence({
+            profile,
+            quote,
+            financials,
+            news,
+            web,
+        });
         console.log("Quote Loaded");
         console.log("Financials Loaded");
         console.log("News Loaded");
@@ -190,8 +213,9 @@ exports.executeResearch = async (
 
 
             confidence:
-                report?.confidence ||
-                0,
+                Number.isFinite(Number(report?.confidence)) && Number(report.confidence) > 0
+                    ? Math.min(Math.round(Number(report.confidence)), 100)
+                    : dataConfidence,
 
 
 

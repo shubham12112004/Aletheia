@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { postResearch, postChatQuery } from '@/lib/api'; // âœ… Real chat query API integration replaces mockData
+import { postResearch, postChatQuery } from '@/lib/api'; // Ã¢Å“â€¦ Real chat query API integration replaces mockData
 import type {
   ArchStep,
   ArchStepStatus,
@@ -30,7 +30,7 @@ function freshSteps(): ArchStep[] {
   return GRAPH_STEPS.map((s) => ({ ...s, status: 'pending' as ArchStepStatus }));
 }
 
-// âœ… Professional Financial Formatter for Trillions and Billions
+// Ã¢Å“â€¦ Professional Financial Formatter for Trillions and Billions
 const formatMarketCap = (v: number) => {
   if (v >= 1000) {
     return `$${(v / 1000).toFixed(2)} T`;
@@ -111,7 +111,7 @@ export function useResearchAgent() {
       setPhase('initializing');
       updateStepsAndPhase(10);
 
-      const milestones = [30, 60, 90];
+      const milestones = [20, 40, 60, 80];
       let milestoneIndex = 0;
 
       progressIntervalRef.current = setInterval(() => {
@@ -141,12 +141,12 @@ export function useResearchAgent() {
           focus: { regulatory, insider },
         });
         
-        // âœ… Handle failed states immediately before allocating downstream parameters
+        // Ã¢Å“â€¦ Handle failed states immediately before allocating downstream parameters
         if (response.success === false) {
           throw new Error(response.message || 'The research server rejected this operation.');
         }
 
-        // âœ… Resilient markdown content string extraction strategy
+        // Ã¢Å“â€¦ Resilient markdown content string extraction strategy
         const markdownContent = typeof response.report === 'string'
           ? response.report
           : response.report?.report || JSON.stringify(response.report || 'No report found.');
@@ -171,7 +171,7 @@ export function useResearchAgent() {
           return val !== undefined && val !== null ? `${prefix}${Number(val).toFixed(2)}${suffix}` : 'N/A';
         };
 
-        // âœ… All fields are mapped directly from the flat response root object
+        // Ã¢Å“â€¦ All fields are mapped directly from the flat response root object
         const cleanResult: ResearchResult = {
           company: response.company || response.profile?.name || company || 'Unknown Company',
           ticker: response.ticker || response.profile?.ticker || 'N/A',
@@ -185,7 +185,7 @@ export function useResearchAgent() {
             {
               label: "Current Price",
               value: response.quote?.c ? `$${Number(response.quote.c).toLocaleString()}` : "N/A",
-              // âœ… Swapped dynamic change parameter to use percentage updates (dp)
+              // Ã¢Å“â€¦ Swapped dynamic change parameter to use percentage updates (dp)
               delta: response.quote?.dp ? `${response.quote.dp >= 0 ? '+' : ''}${response.quote.dp.toFixed(2)}%` : "",
               tone: response.quote?.dp ? (response.quote.dp >= 0 ? 'positive' : 'negative') : 'neutral',
               description: "Current market price index",
@@ -255,7 +255,7 @@ export function useResearchAgent() {
             timestamp: item.publishedAt || '',
             url: item.url || '#'
           })) : (Array.isArray(response.citations) ? response.citations : []),
-          // âœ… Map real arrays downstream directly from server payload
+          // Ã¢Å“â€¦ Map real arrays downstream directly from server payload
           revenueSeries: Array.isArray(response.revenueSeries) ? response.revenueSeries : [],
           regulatoryNotes: Array.isArray(response.regulatoryNotes) ? response.regulatoryNotes : [],
           insiderNotes: Array.isArray(response.insiderNotes) ? response.insiderNotes : [],
@@ -321,7 +321,7 @@ export function useResearchAgent() {
     timelineIdRef.current = 0;
   }, []);
 
-  // âœ… Async backend integration strategy cleanly executing Groq updates dynamically
+  // Ã¢Å“â€¦ Async backend integration strategy cleanly executing Groq updates dynamically
   const ask = useCallback(async (text: string, scenario: MacroScenario) => {
     const userMsg: ChatMessage = { id: msgIdRef.current++, role: 'user', text, timestamp: nowStamp() };
     setMessages((prev) => [...prev, userMsg]);
