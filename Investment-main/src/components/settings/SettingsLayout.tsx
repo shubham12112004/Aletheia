@@ -7,7 +7,7 @@ import { AccountSettings } from './AccountSettings';
 import { useSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/context/AuthContext';
 
-export function SettingsLayout({ initialView = 'profile' }: { initialView?: 'profile' | 'settings' }) {
+export function SettingsLayout() {
   const { query } = useSettings();
   const { user } = useAuth();
 

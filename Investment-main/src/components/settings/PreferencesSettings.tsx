@@ -1,11 +1,7 @@
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { SectionTitle, SettingBlock, SegmentedControl, Toggle } from './SharedSettings';
 import { useSettings } from '@/hooks/useSettings';
-import { preferencesSchema, workspaceSchema, runtimeSchema } from '@/lib/validations/settings';
-import { Database, SlidersHorizontal, User, Globe2 } from 'lucide-react';
+import { Database, SlidersHorizontal, Globe2 } from 'lucide-react';
 
 export function PreferencesSettings({ settings }: { settings: any }) {
   const { updatePreferences, updateRuntime } = useSettings();
