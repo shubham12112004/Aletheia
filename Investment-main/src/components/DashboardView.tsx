@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, ChevronDown, Clock3, Database,
-  PlayCircle, Search, Settings, TrendingUp, User,
+  Bell, ChevronDown, Clock3, Database, Globe2,
+  PlayCircle, Search, Settings, SlidersHorizontal, TrendingUp, User, X,
   Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
-  LogOut, Sun, Moon
+  Camera, LogOut, Sun, Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,9 +21,14 @@ import { MarkdownReport } from '@/components/dashboard/MarkdownReport';
 import { ResearchGraphView } from '@/components/ResearchGraph/ResearchGraphView';
 import { SettingsLayout } from './settings/SettingsLayout';
 import { cn } from '@/lib/utils';
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/api';
+import {
+  getWatchlist, addToWatchlist, removeFromWatchlist,
+  postUpdateProfile, postUpdatePassword, deleteAccount
+} from '@/lib/api';
 
 type ActiveTab = 'dashboard' | 'history' | 'watchlist' | 'profile' | 'settings';
+type AnalysisDepth = 'fast' | 'deep';
+type ApiEndpoint = 'production' | 'staging';
 type NotificationItem = {
   id: string; title: string; desc: string; type: 'info' | 'success' | 'warn'; time: string;
 };
@@ -52,7 +57,7 @@ const RECOMMENDATIONS = [
 ];
 
 export function DashboardView() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask } = useResearchAgent();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -64,6 +69,10 @@ export function DashboardView() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [history, setHistory] = useState<ResearchSnapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
+  const [apiEndpoint, setApiEndpoint] = useState<ApiEndpoint>('production');
+  const [analysisDepth, setAnalysisDepth] = useState<AnalysisDepth>('deep');
+  const [quotaAlerts, setQuotaAlerts] = useState(true);
+  const [socketProgress, setSocketProgress] = useState(true);
 
   // Dynamic notifications state
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -110,7 +119,7 @@ export function DashboardView() {
   }, [token]); // eslint-disable-line
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setHistory(JSON.parse(stored)); } catch { setHistory([]); } }, []);
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 20))); } catch (e) { /* ignore */ } }, [history]);
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 20))); } catch {} }, [history]);
 
   const running = status === 'running';
   const hasResult = status === 'complete' && Boolean(result);
@@ -387,12 +396,12 @@ export function DashboardView() {
           )}
           {activeTab === 'profile' && (
             <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SettingsLayout />
+              <SettingsLayout initialView="profile" />
             </motion.div>
           )}
           {activeTab === 'settings' && (
             <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SettingsLayout />
+              <SettingsLayout initialView="settings" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -795,3 +804,197 @@ function WatchlistPane({ watchlist, error, onResearch, onRemove }: {
 // ─────────────────────────────────────────────────────────────────────────────
 // Profile Pane (Tab view with user pic)
 // ─────────────────────────────────────────────────────────────────────────────
+function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div>
+      <h3 className="text-lg font-black tracking-tight text-white">{title}</h3>
+      <p className="mt-1 text-sm text-zinc-600">{subtitle}</p>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{label}</p>
+      <p className="mt-1 truncate text-sm font-bold text-zinc-200">{value}</p>
+    </div>
+  );
+}
+
+function Score({ label, value, color }: { label: string; value: number; color: 'emerald' | 'red' | 'blue' }) {
+  const bars: Record<string, string> = { emerald: 'bg-emerald-500', red: 'bg-red-500', blue: 'bg-blue-500' };
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/3 p-3">
+      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{label}</p>
+      <p className="mt-1 text-xl font-black text-white">{value}%</p>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/8">
+        <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} className={`h-full ${bars[color]}`} />
+      </div>
+    </div>
+  );
+}
+
+function MetricBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/3 p-3 transition hover:border-emerald-500/20 hover:bg-emerald-500/5">
+      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{label}</p>
+      <p className="mt-1 truncate text-lg font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function Sentiment({ label, value, positive }: { label: string; value: number; positive: boolean }) {
+  return (
+    <div className={`rounded-2xl border p-4 text-center ${positive ? 'border-emerald-500/20 bg-emerald-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+      <p className={`text-2xl font-black ${positive ? 'text-emerald-400' : 'text-red-400'}`}>{value}</p>
+      <p className={`mt-1 text-xs font-bold uppercase tracking-wider ${positive ? 'text-emerald-600' : 'text-red-600'}`}>{label}</p>
+    </div>
+  );
+}
+
+function NewsCard({ title, snippet, timestamp, url, source }: { title: string; snippet: string; timestamp: string; url: string; source: string }) {
+  const safeUrl = url && url !== '#' ? url : undefined;
+  return (
+    <motion.article whileHover={{ y: -3, borderColor: 'rgba(52,211,153,0.2)' }} className="rounded-2xl border border-white/8 bg-white/3 p-3 transition">
+      <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500">{source}</p>
+      <h4 className="mt-2 line-clamp-2 text-sm font-black leading-5 text-white">{title}</h4>
+      <p className="mt-2 line-clamp-3 text-xs leading-5 text-zinc-500">{snippet}</p>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold text-zinc-600">{timestamp}</span>
+        {safeUrl ? (
+          <a href={safeUrl} target="_blank" rel="noreferrer" className="rounded-full border border-emerald-500/20 bg-emerald-500/8 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/15">
+            Read →
+          </a>
+        ) : (
+          <span className="rounded-full border border-white/8 bg-white/3 px-3 py-1 text-xs font-bold text-zinc-600">No Link</span>
+        )}
+      </div>
+    </motion.article>
+  );
+}
+
+function EmptyDashboard() {
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <DashboardCard>
+        <SectionTitle title="Asset Overview" subtitle="Run a search to populate this panel with company data" />
+        <div className="mt-6 h-32 animate-shimmer rounded-2xl" />
+      </DashboardCard>
+      <DashboardCard>
+        <SectionTitle title="Analytics Framework" subtitle="Evaluation charts appear after report generation" />
+        <div className="mt-6 h-32 animate-shimmer rounded-2xl" />
+      </DashboardCard>
+    </div>
+  );
+}
+
+function SettingBlock({ icon: Icon, title, subtitle, children }: { icon: typeof Database; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
+      <div className="flex items-start gap-3">
+        <div className="rounded-2xl bg-emerald-500/12 p-3 text-emerald-400 ring-1 ring-emerald-500/20">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-black text-white">{title}</p>
+          <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
+          <div className="mt-4">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SegmentedControl({ value, options, onChange }: { value: string; options: Array<[string, string]>; onChange: (v: string) => void }) {
+  return (
+    <div className="inline-flex rounded-full border border-white/10 bg-white/4 p-1">
+      {options.map(([id, label]) => (
+        <button key={id} type="button" onClick={() => onChange(id)} className={cn('rounded-full px-4 py-2 text-sm font-bold transition', value === id ? 'bg-emerald-500 text-[#05080f] shadow-md' : 'text-zinc-500 hover:text-zinc-300')}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/3 p-3 text-left transition hover:border-white/12 hover:bg-white/5">
+      <span className="text-sm font-bold text-zinc-300">{label}</span>
+      <span className={cn('relative h-6 w-11 rounded-full transition-colors', checked ? 'bg-emerald-500' : 'bg-white/12')}>
+        <span className={cn('absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all', checked ? 'left-6' : 'left-1')} />
+      </span>
+    </button>
+  );
+}
+
+function buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news }: { result: ResearchResult; rawMarkdown?: string; timeline: any[]; profile: any; quote: any; financials: any; news: any[] }): ResearchSnapshot {
+  return { id: `${result.ticker || result.company}-${Date.now()}`, company: profile?.name || result.company, ticker: profile?.ticker || result.ticker || result.company, createdAt: new Date().toISOString(), result, rawMarkdown: rawMarkdown || buildFallbackMarkdown(result), timelineCount: timeline.length, profile, quote, financials, newsData: Array.isArray(news) ? news : [] };
+}
+
+function getDerivedMetrics(profile: any, financials: any, quote: any) {
+  const fmt = (val: any, prefix = '', suffix = '') => {
+    if (val === undefined || val === null || Number.isNaN(Number(val))) return 'N/A';
+    return `${prefix}${Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })}${suffix}`;
+  };
+  const metrics = financials?.metric || {};
+  const marketCap = profile?.marketCapitalization != null ? fmt(profile.marketCapitalization, '$', ' B') : 'N/A';
+  return {
+    marketCap,
+    items: [
+      { label: 'Current Price', value: quote?.c != null ? fmt(quote.c, '$') : 'N/A' },
+      { label: 'Previous Close', value: quote?.pc != null ? fmt(quote.pc, '$') : 'N/A' },
+      { label: 'Day High', value: quote?.h != null ? fmt(quote.h, '$') : 'N/A' },
+      { label: 'Day Low', value: quote?.l != null ? fmt(quote.l, '$') : 'N/A' },
+      { label: 'Market Cap', value: marketCap },
+      { label: 'P/E Ratio', value: metrics.peTTM != null ? fmt(metrics.peTTM) : metrics.peBasicExclExtraTTM != null ? fmt(metrics.peBasicExclExtraTTM) : 'N/A' },
+      { label: 'EPS', value: metrics.epsTTM != null ? fmt(metrics.epsTTM, '$') : 'N/A' },
+      { label: 'Dividend Yield', value: metrics.dividendYieldIndicatedAnnual != null ? fmt(metrics.dividendYieldIndicatedAnnual, '', '%') : 'N/A' },
+      { label: 'Beta', value: metrics.beta != null ? fmt(metrics.beta) : 'N/A' },
+      { label: '52 Week High', value: metrics['52WeekHigh'] != null ? fmt(metrics['52WeekHigh'], '$') : 'N/A' },
+      { label: '52 Week Low', value: metrics['52WeekLow'] != null ? fmt(metrics['52WeekLow'], '$') : 'N/A' },
+      { label: '52W Return', value: metrics['52WeekPriceReturnDaily'] != null ? fmt(metrics['52WeekPriceReturnDaily'], '', '%') : 'N/A' },
+    ],
+  };
+}
+
+function normalizeNews(newsData: any[], result: ResearchResult) {
+  if (Array.isArray(newsData) && newsData.length > 0) {
+    return newsData.slice(0, 5).map((n: any) => ({ title: n.title || 'Untitled', snippet: n.description || 'No snippet.', source: n.source?.name || 'NewsAPI', timestamp: n.publishedAt ? new Date(n.publishedAt).toLocaleDateString() : '--', url: n.url || '#' }));
+  }
+  return (result.citations || []).slice(0, 5).map((item) => ({ title: item.title, snippet: item.snippet, source: item.source, timestamp: item.timestamp, url: item.url }));
+}
+
+function buildFallbackMarkdown(result: ResearchResult) {
+  return `# ${result.company} Investment Report\n\n## Executive Summary\n${(result.executiveSummary || []).map((item) => `- ${item}`).join('\n') || '- Report generated from the latest research run.'}\n\n## Final Recommendation\n**${result.verdict}** with **${result.confidence}% confidence**.`;
+}
+
+// Determine sector-related recommended tickers
+function getSimilarTickers(ticker: string) {
+  const t = ticker.toUpperCase();
+  if (['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'GOOG', 'AMD', 'INTC', 'NFLX', 'META', 'AMZN'].includes(t)) {
+    return [
+      { ticker: 'MSFT', name: 'Microsoft Corporation' },
+      { ticker: 'NVDA', name: 'NVIDIA Corporation' },
+      { ticker: 'AMD', name: 'Advanced Micro Devices' },
+      { ticker: 'GOOGL', name: 'Alphabet Inc.' }
+    ].filter(item => item.ticker !== t).slice(0, 3);
+  }
+  if (['TSLA', 'NIO', 'RIVN', 'LCID', 'F', 'GM'].includes(t)) {
+    return [
+      { ticker: 'RIVN', name: 'Rivian Automotive' },
+      { ticker: 'F', name: 'Ford Motor Company' },
+      { ticker: 'GM', name: 'General Motors Company' },
+      { ticker: 'TSLA', name: 'Tesla, Inc.' }
+    ].filter(item => item.ticker !== t).slice(0, 3);
+  }
+  return [
+    { ticker: 'AAPL', name: 'Apple Inc.' },
+    { ticker: 'MSFT', name: 'Microsoft Corp' },
+    { ticker: 'TSLA', name: 'Tesla Inc.' }
+  ].filter(item => item.ticker !== t).slice(0, 3);
+}
+
+const fallbackNews = [{ title: 'Research sources will appear here', snippet: 'News cards are populated from citations after the backend run completes.', timestamp: '--', url: '#', source: 'AI Research' }];
+
