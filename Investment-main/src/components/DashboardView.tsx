@@ -182,13 +182,13 @@ export function DashboardView() {
       <header className="sticky top-0 z-40 border-b border-white/8 bg-[#05080f]/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1360px] items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center">
-              <img src="/favicon.png" alt="Aletheia" className="h-10 w-10" style={{ aspectRatio: '1 / 1' }} />
+          <div className="flex items-center gap-[10px]">
+            <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 shrink-0 items-center justify-center">
+              <img src="/android-chrome-512x512.png" alt="Aletheia" className="h-full w-full object-contain" style={{ aspectRatio: '1 / 1' }} />
             </div>
-            <div>
-              <h1 className="text-sm font-black tracking-tight text-white">Aletheia</h1>
-              <p className="text-[11px] text-zinc-500">Research Workspace for Equity Analysis</p>
+            <div className="flex flex-col justify-center">
+              <h1 className="text-sm font-black tracking-tight text-white leading-tight">Aletheia</h1>
+              <p className="text-[11px] text-zinc-500 leading-tight">Research Workspace for Equity Analysis</p>
             </div>
           </div>
 

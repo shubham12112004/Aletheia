@@ -91,13 +91,13 @@ export function LandingView() {
         {/* Nav */}
         <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex h-9 w-9 items-center justify-center">
-              <img src="/favicon.png" alt="Aletheia" className="h-9 w-9" style={{ aspectRatio: '1 / 1' }} />
+            <div className="flex items-center gap-[10px]">
+              <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 shrink-0 items-center justify-center">
+                <img src="/android-chrome-512x512.png" alt="Aletheia" className="h-full w-full object-contain" style={{ aspectRatio: '1 / 1' }} />
               </div>
-              <div className="leading-tight">
-                <h1 className="text-sm font-semibold tracking-tight text-foreground">Aletheia</h1>
-                <p className="text-[11px] text-muted-foreground">Research Workspace for Equity Analysis</p>
+              <div className="flex flex-col justify-center">
+                <h1 className="text-sm font-semibold tracking-tight text-foreground leading-tight">Aletheia</h1>
+                <p className="text-[11px] text-muted-foreground leading-tight">Research Workspace for Equity Analysis</p>
               </div>
             </div>
 
