@@ -1,31 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, ChevronDown, Clock3,
-  PlayCircle, Search, Settings, TrendingUp, User,
-  Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
-  LogOut, Sun, Moon
+  Bell, Clock3, Search, TrendingUp, TrendingDown,
+  Sparkles, Plus, History, BookMarked, LogOut, Activity, PieChart, Wallet, 
+  ArrowUpRight, Briefcase, FileText, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useResearchAgent } from '@/hooks/useResearchAgent';
-import { MACRO_SCENARIOS, getChatIntro } from '@/lib/mockData';
+import { MACRO_SCENARIOS } from '@/lib/mockData';
 import type { FocusFilters, MacroScenario, ResearchResult } from '@/lib/types';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { ProcessingPipeline } from '@/components/dashboard/ProcessingPipeline';
 import { RecommendationBadge } from '@/components/dashboard/RecommendationBadge';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import { MarkdownReport } from '@/components/dashboard/MarkdownReport';
-import { ResearchGraphView } from '@/components/ResearchGraph/ResearchGraphView';
-import { SettingsLayout } from './settings/SettingsLayout';
+import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
+import { SettingsModal } from '@/components/settings/SettingsModal';
 import { cn } from '@/lib/utils';
-import {
-  getWatchlist, addToWatchlist, removeFromWatchlist,
-  } from '@/lib/api';
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/api';
+import { DashboardChatbot } from './dashboard/DashboardChatbot';
 
-type ActiveTab = 'dashboard' | 'history' | 'watchlist' | 'profile' | 'settings';
 type NotificationItem = {
   id: string; title: string; desc: string; type: 'info' | 'success' | 'warn'; time: string;
 };
@@ -37,12 +34,31 @@ type ResearchSnapshot = {
 
 const STORAGE_KEY = 'aletheia.researchHistory';
 
-// Fixed navbar: Profile removed as request (opens when profile clicked & as settings option)
-const navItems: Array<{ id: ActiveTab; label: string; icon: typeof LayoutDashboard }> = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'history', label: 'History', icon: History },
-  { id: 'watchlist', label: 'Watchlist', icon: BookMarked },
-  { id: 'settings', label: 'Settings', icon: Settings },
+// Mock Data for Premium Layout
+const MOCK_PORTFOLIO = {
+  value: 124592.45,
+  dailyChange: 1240.50,
+  dailyPercent: 1.01,
+  sentiment: 'Bullish',
+  status: 'Open - NASDAQ',
+  allocations: [
+    { label: 'Technology', val: 45, color: 'bg-blue-500' },
+    { label: 'Healthcare', val: 25, color: 'bg-emerald-500' },
+    { label: 'Finance', val: 20, color: 'bg-purple-500' },
+    { label: 'Energy', val: 10, color: 'bg-amber-500' }
+  ],
+  transactions: [
+    { id: 1, type: 'BUY', ticker: 'NVDA', shares: 15, price: 120.45, date: 'Today, 09:30 AM' },
+    { id: 2, type: 'SELL', ticker: 'TSLA', shares: 50, price: 175.20, date: 'Yesterday, 14:15 PM' },
+    { id: 3, type: 'BUY', ticker: 'MSFT', shares: 25, price: 415.80, date: 'Oct 24, 11:05 AM' }
+  ]
+};
+
+const MOCK_TRENDING = [
+  { ticker: 'NVDA', price: 125.40, change: '+4.2%' },
+  { ticker: 'TSLA', price: 178.20, change: '-1.5%' },
+  { ticker: 'PLTR', price: 24.50, change: '+8.4%' },
+  { ticker: 'SMCI', price: 890.10, change: '-4.2%' },
 ];
 
 const RECOMMENDATIONS = [
@@ -53,61 +69,58 @@ const RECOMMENDATIONS = [
   { ticker: 'AMZN', name: 'Amazon.com, Inc.' }
 ];
 
+function buildLiveSnapshot(data: any): ResearchSnapshot {
+  return {
+    id: Math.random().toString(36).substr(2, 9),
+    company: data.profile?.name || data.result?.company || 'Unknown',
+    ticker: data.profile?.ticker || data.result?.ticker || 'N/A',
+    createdAt: new Date().toISOString(),
+    result: data.result,
+    rawMarkdown: data.rawMarkdown,
+    timelineCount: data.timeline?.length || 0,
+    profile: data.profile,
+    quote: data.quote,
+    financials: data.financials,
+    newsData: data.news
+  };
+}
+
 export function DashboardView() {
   const { user, token, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask } = useResearchAgent();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask, clearChat, error } = useResearchAgent();
+  
   const [company, setCompany] = useState('');
   const [scenario] = useState<MacroScenario>(MACRO_SCENARIOS[2]);
   const [focus] = useState<FocusFilters>({ regulatory: true, insider: false });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [history, setHistory] = useState<ResearchSnapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
-
-  // Dynamic notifications state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-
-  // Watchlist State (Persisted in DB)
   const [watchlistItems, setWatchlistItems] = useState<Array<{ ticker: string; name: string }>>([]);
-  const [watchlistError, setWatchlistError] = useState<string | null>(null);
 
   const addNotification = (title: string, desc: string, type: 'info' | 'success' | 'warn' = 'info') => {
-    const item: NotificationItem = {
-      id: Math.random().toString(),
-      title,
-      desc,
-      type,
-      time: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    };
-    setNotifications((prev) => [item, ...prev].slice(0, 15));
-    setUnreadNotifications((c) => c + 1);
+    const item: NotificationItem = { id: Math.random().toString(), title, desc, type, time: new Date().toLocaleTimeString() };
+    setNotifications((prev) => [item, ...prev].slice(0, 20));
   };
 
-  // Sync Watchlist from Backend
   const syncWatchlist = async (silent = false) => {
     try {
-      const data = await getWatchlist(token);
-      setWatchlistItems(data);
+      const items = await getWatchlist(token);
+      setWatchlistItems(items);
+      if (!silent) addNotification('Watchlist Synced', 'Your watchlist has been updated.', 'success');
     } catch (err) {
-      setWatchlistError(err instanceof Error ? err.message : 'Could not fetch watchlist.');
-      if (!silent) addNotification('Error', 'Failed to retrieve watchlist data.', 'warn');
+      if (!silent) addNotification('Sync Failed', 'Could not sync watchlist.', 'warn');
     }
   };
 
-  // Initial welcome notification and watchlist sync
   useEffect(() => {
-    document.documentElement.classList.add('dark');
+    document.documentElement.classList.add('dark'); // Force dark mode for premium feel
     if (token && user) {
       syncWatchlist(true);
-      // Clean initials list to establish welcome message
-      addNotification(
-        'Workspace Online',
-        `Logged in as ${user.email} (Provider: ${user.provider || 'credentials'})`,
-        'info'
-      );
+      addNotification('Terminal Online', `Logged in as ${user.email}`, 'info');
     }
   }, [token]); // eslint-disable-line
 
@@ -116,838 +129,473 @@ export function DashboardView() {
 
   const running = status === 'running';
   const hasResult = status === 'complete' && Boolean(result);
-  const selectedSnapshot = history.find((item) => item.id === selectedSnapshotId) || null;
-  const activeDataset = selectedSnapshot || (result ? buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news }) : null);
+  const activeDataset = (history.find((item) => item.id === selectedSnapshotId)) || (result ? buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news }) : null);
 
-  // Spawning LangGraph notifications
-  useEffect(() => {
-    if (running) {
-      addNotification('Research Spawning', `Initializing LangGraph loop on ticker ${company.toUpperCase()}`, 'info');
-    }
-  }, [running]); // eslint-disable-line
+  useEffect(() => { if (running) addNotification('Research Initiated', `Querying agent swarm for ${company.toUpperCase()}`, 'info'); }, [running]); // eslint-disable-line
 
   useEffect(() => {
     if (!hasResult || !result) return;
     const snapshot = buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news });
     setHistory((current) => [snapshot, ...current.filter((item) => item.ticker !== snapshot.ticker || item.rawMarkdown !== snapshot.rawMarkdown)].slice(0, 20));
     setSelectedSnapshotId(null);
-    addNotification('Report Complete', `LangGraph resolving verdict: ${result.verdict} (${result.confidence}% confidence)`, 'success');
-  }, [hasResult, result, rawMarkdown, timeline, profile, quote, financials, news]);
+    addNotification('Analysis Complete', `Agent generated verdict: ${result.verdict}`, 'success');
+  }, [hasResult, result, rawMarkdown, timeline, profile, quote, financials, news]); // eslint-disable-line
+
+  useEffect(() => {
+    const handleOpenChat = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setIsChatOpen(true);
+      if (customEvent.detail) setTimeout(() => ask(customEvent.detail, scenario), 300);
+    };
+    window.addEventListener('open-chat-with-query', handleOpenChat);
+    return () => window.removeEventListener('open-chat-with-query', handleOpenChat);
+  }, [ask, scenario]);
 
   const handleSearch = (targetOverride?: unknown) => {
     const target = typeof targetOverride === 'string' ? targetOverride.trim() : company.trim();
     if (!target || running) return;
-    setSelectedSnapshotId(null); setActiveTab('dashboard'); setCompany(target);
+    setSelectedSnapshotId(null); setCompany(target);
     run(target, scenario, focus.regulatory, focus.insider);
   };
-  const handleNewResearch = () => { reset(); setSelectedSnapshotId(null); setCompany(''); setActiveTab('dashboard'); };
-  useEffect(() => { if (hasResult && messages.length === 0) ask(getChatIntro(), scenario); }, [hasResult]); // eslint-disable-line
   
+  const handleNewResearch = () => { reset(); setSelectedSnapshotId(null); setCompany(''); };
+
   const handleAddToWatchlist = async (ticker: string, name: string) => {
     try {
       await addToWatchlist({ ticker, name }, token);
       await syncWatchlist(true);
-      addNotification('Watchlist Updated', `Added ${ticker.toUpperCase()} to your saved watchlist.`, 'success');
+      addNotification('Watchlist Updated', `Added ${ticker.toUpperCase()}`, 'success');
     } catch (err) {
-      addNotification('Watchlist Error', err instanceof Error ? err.message : 'Could not add to watchlist', 'warn');
+      addNotification('Watchlist Error', err instanceof Error ? err.message : 'Failed to add', 'warn');
     }
   };
 
-  const handleRemoveFromWatchlist = async (ticker: string) => {
-    try {
-      await removeFromWatchlist(ticker, token);
-      await syncWatchlist(true);
-      addNotification('Watchlist Updated', `Removed ${ticker.toUpperCase()} from your saved watchlist.`, 'info');
-    } catch (err) {
-      addNotification('Watchlist Error', err instanceof Error ? err.message : 'Could not remove from watchlist', 'warn');
-    }
-  };
+
 
   const initials = (user?.name || 'AI').split(' ').map((item) => item[0]).slice(0, 2).join('').toUpperCase();
 
   return (
-    <div className="min-h-screen bg-aurora text-foreground">
-      {/* Background decorative elements */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="animate-mesh-drift absolute -left-64 -top-64 h-[700px] w-[700px] rounded-full bg-emerald-500/5 blur-[140px]" />
-        <div className="animate-mesh-drift absolute -bottom-64 -right-64 h-[600px] w-[600px] rounded-full bg-blue-500/5 blur-[140px]" style={{ animationDelay: '-7s' }} />
-        <div className="absolute inset-0 bg-grid opacity-25" />
+    <div className="min-h-screen bg-[#09090b] text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
+      
+      {/* Background Gradients */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/5 blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/5 blur-[120px]" />
       </div>
 
-      {/* Sticky header */}
-      <header className="sticky top-0 z-40 border-b border-white/8 bg-[#05080f]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1360px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          {/* Logo */}
-          <div className="flex items-center gap-[10px]">
-            <div className="relative flex h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10 shrink-0 items-center justify-center">
-              <img src="/android-chrome-512x512.png" alt="Aletheia" className="h-full w-full object-contain" style={{ aspectRatio: '1 / 1' }} />
+      {/* SECTION 1: TOP NAVIGATION */}
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 w-full px-4 sm:px-6 lg:px-8 items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 cursor-pointer" onClick={handleNewResearch}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold shadow-md">
+                A
+              </div>
+              <span className="font-bold tracking-tight text-lg hidden sm:block text-zinc-100">Aletheia</span>
             </div>
-            <div className="flex flex-col justify-center">
-              <h1 className="text-sm font-black tracking-tight text-white leading-tight">Aletheia</h1>
-              <p className="text-[11px] text-zinc-500 leading-tight">Research Workspace for Equity Analysis</p>
+            <div className="hidden lg:flex items-center gap-6 ml-6 text-sm font-medium text-zinc-400">
+              <span className="text-zinc-100 cursor-pointer transition-colors">Terminal</span>
+              <span className="hover:text-zinc-100 cursor-pointer transition-colors">Markets</span>
+              <span className="hover:text-zinc-100 cursor-pointer transition-colors">Screener</span>
+              <span className="hover:text-zinc-100 cursor-pointer transition-colors">Portfolios</span>
+            </div>
+          </div>
+          
+          <div className="flex-1 flex justify-center max-w-xl mx-4">
+            <div className="relative w-full max-w-md group hidden sm:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
+              <Input
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search symbol, company, or sector..."
+                className="w-full bg-zinc-900/50 border-border/50 pl-10 pr-4 h-9 rounded-full focus-visible:ring-1 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500/50 transition-all placeholder:text-zinc-600 text-sm shadow-sm"
+              />
             </div>
           </div>
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-1.5 lg:flex">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200',
-                  activeTab === item.id
-                    ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
-                    : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'
-                )}
-              >
-                <item.icon className="h-3.5 w-3.5" />
-                {item.label}
-              </button>
-            ))}
-          </nav>
-
-          {/* Right controls */}
           <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="h-9 w-9 rounded-full text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(!isChatOpen)} className={cn("h-8 w-8 rounded-full", isChatOpen && "bg-emerald-500/10 text-emerald-500")}>
+              <Sparkles className="h-4 w-4" />
             </Button>
-
-            {/* Real-time Notifications Bell */}
             <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => { setNotificationsOpen((v) => !v); setUnreadNotifications(0); }}
-                className="relative h-9 w-9 rounded-full text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
-              >
+              <Button variant="ghost" size="icon" onClick={() => setNotificationsOpen(!notificationsOpen)} className="h-8 w-8 rounded-full">
                 <Bell className="h-4 w-4" />
-                {unreadNotifications > 0 && (
-                  <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-[#05080f] animate-pulse" />
-                )}
+                {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
               </Button>
               <AnimatePresence>
                 {notificationsOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-white/8 bg-[#0d1117]/95 p-3 shadow-2xl backdrop-blur-xl"
-                  >
-                    <div className="flex items-center justify-between pb-2 border-b border-white/5 mb-2">
-                      <p className="text-xs font-black text-white uppercase tracking-wider">Workspace updates</p>
-                      <button
-                        type="button"
-                        onClick={() => { setNotifications([]); setUnreadNotifications(0); }}
-                        className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition"
-                      >
-                        Clear logs
-                      </button>
-                    </div>
-                    <div className="max-h-72 overflow-y-auto stream-scroll space-y-1.5 pr-1">
-                      {notifications.length === 0 ? (
-                        <p className="text-xs text-zinc-600 italic py-4 text-center">No recent telemetry updates.</p>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={cn(
-                              'rounded-xl border p-2.5 text-xs',
-                              notif.type === 'success' ? 'border-emerald-500/10 bg-emerald-500/5 text-emerald-400' :
-                              notif.type === 'warn' ? 'border-amber-500/10 bg-amber-500/5 text-amber-400' :
-                              'border-white/5 bg-white/2 text-zinc-300'
-                            )}
-                          >
-                            <div className="flex items-start justify-between gap-1.5">
-                              <p className="font-bold text-white leading-normal truncate">{notif.title}</p>
-                              <span className="text-[9px] text-zinc-600 shrink-0 font-semibold">{notif.time}</span>
-                            </div>
-                            <p className="mt-1 text-zinc-400 leading-relaxed text-[11px]">{notif.desc}</p>
-                          </div>
-                        ))
-                      )}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-border/50 bg-[#09090b]/95 backdrop-blur-xl p-2 shadow-2xl z-50">
+                    <div className="p-2 pb-3 mb-2 border-b border-border/50"><h3 className="text-sm font-bold text-zinc-100">Terminal Events</h3></div>
+                    <div className="max-h-[300px] overflow-y-auto space-y-1">
+                      {notifications.length === 0 ? <p className="p-4 text-center text-xs text-zinc-500">No events</p> : notifications.map((n) => (
+                        <div key={n.id} className="rounded-xl p-3 hover:bg-zinc-800/50 transition">
+                          <div className="flex justify-between items-start"><p className="text-sm font-semibold text-zinc-200">{n.title}</p><span className="text-[10px] text-zinc-500">{n.time}</span></div>
+                          <p className="text-xs text-zinc-400 mt-1">{n.desc}</p>
+                        </div>
+                      ))}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-
-            {/* Profile Avatar Trigger (sets tab to profile) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => { setProfileMenuOpen((v) => !v); setNotificationsOpen(false); }}
-                className="flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2 py-1.5 transition hover:border-emerald-500/30 hover:bg-white/6"
-              >
-                {user?.picture ? (
-                  <img src={user.picture} alt="Avatar" className="h-7 w-7 rounded-full object-cover shadow-md shadow-emerald-500/25 border border-emerald-500/20" />
-                ) : (
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-700 text-xs font-black text-white shadow-md shadow-emerald-500/25">
-                    {initials}
-                  </span>
-                )}
-                <span className="hidden max-w-[130px] truncate text-sm font-semibold text-zinc-300 sm:block">
-                  {user?.name || 'Profile'}
-                </span>
-                <ChevronDown className={cn("h-3.5 w-3.5 text-zinc-500 transition-transform", profileMenuOpen && "rotate-180")} />
+            <div className="relative ml-1">
+              <button onClick={() => setProfileMenuOpen(!profileMenuOpen)} className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-xs font-bold text-white shadow-md ring-1 ring-border/50 hover:ring-zinc-500 transition-all">
+                {initials}
               </button>
-
               <AnimatePresence>
                 {profileMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-white/8 bg-[#0d1117]/95 p-1 shadow-2xl backdrop-blur-xl"
-                  >
-                    <button
-                      onClick={() => { setActiveTab('profile'); setProfileMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/5 hover:text-white transition"
-                    >
-                      <User className="h-4 w-4" />
-                      View Profile
-                    </button>
-                    <div className="my-1 h-px w-full bg-white/5" />
-                    <button
-                      onClick={() => { logout(); setProfileMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-red-400 hover:bg-red-400/10 transition"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/50 bg-[#09090b]/95 backdrop-blur-xl p-2 shadow-2xl z-50">
+                    <div className="px-3 py-3 border-b border-border/50 mb-2">
+                      <p className="text-sm font-bold text-zinc-100 truncate">{user?.name || 'Analyst'}</p>
+                      <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
+                        <Activity className="h-3 w-3" /> Active Workspace
+                      </div>
+                    </div>
+                    <div className="space-y-1 mb-2">
+                      <button onClick={() => { setIsSettingsOpen(true); setProfileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition">
+                        <Settings className="h-4 w-4 text-zinc-400" /> Settings & Preferences
+                      </button>
+                    </div>
+                    <button onClick={logout} className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 transition">
+                      <LogOut className="h-4 w-4" /> Sign Out
                     </button>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
-        </div>
-
-        {/* Mobile nav scrollable */}
-        <div className="mx-auto flex max-w-[1360px] gap-2 overflow-x-auto px-4 pb-3 sm:px-6 lg:hidden">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={cn(
-                'shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-all duration-155',
-                activeTab === item.id ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30' : 'bg-white/5 text-zinc-500'
-              )}
-            >
-              <item.icon className="h-3 w-3" />
-              {item.label}
-            </button>
-          ))}
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="relative z-10 mx-auto max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8">
-        <AnimatePresence mode="wait">
-          {activeTab === 'dashboard' && (
-            <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <DashboardPane
-                company={company}
-                setCompany={setCompany}
-                running={running}
-                activeDataset={activeDataset}
-                steps={steps}
-                progress={progress}
-                phase={phase}
-                onSearch={handleSearch}
-                onReset={handleNewResearch}
-                watchlistItems={watchlistItems}
-                onAddToWatchlist={handleAddToWatchlist}
-              />
-            </motion.div>
-          )}
-          {activeTab === 'history' && (
-            <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <HistoryPane history={history} selectedId={selectedSnapshotId} onLoad={(id) => { setSelectedSnapshotId(id); const item = history.find((e) => e.id === id); if (item) setCompany(item.ticker || item.company); setActiveTab('dashboard'); }} onRun={(ticker) => handleSearch(ticker)} />
-            </motion.div>
-          )}
-          {activeTab === 'watchlist' && (
-            <motion.div key="watchlist" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <WatchlistPane
-                watchlist={watchlistItems}
-                error={watchlistError}
-                onResearch={(ticker) => handleSearch(ticker)}
-                onRemove={handleRemoveFromWatchlist}
-              />
-            </motion.div>
-          )}
-          {activeTab === 'profile' && (
-            <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SettingsLayout />
-            </motion.div>
-          )}
-          {activeTab === 'settings' && (
-            <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SettingsLayout />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Dashboard Pane
-// ─────────────────────────────────────────────────────────────────────────────
-function DashboardPane({
-  company, setCompany, running, activeDataset, steps, progress, phase,
-  onSearch, onReset, watchlistItems, onAddToWatchlist
-}: {
-  company: string; setCompany: (v: string) => void; running: boolean;
-  activeDataset: ResearchSnapshot | null; steps: any[]; progress: number;
-  phase: string; onSearch: (targetOverride?: string) => void; onReset: () => void;
-  watchlistItems: Array<{ ticker: string; name: string }>;
-  onAddToWatchlist: (ticker: string, name: string) => void;
-}) {
-  return (
-    <>
-      {/* Hero search card */}
-      <DashboardCard className="mb-5 p-5 sm:p-6" glow>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-emerald-500">Research Workspace for Equity Analysis</p>
-            </div>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
-              Research any company,{' '}
-              <span className="text-gradient-emerald">instantly.</span>
-            </h2>
-            <p className="mt-1.5 max-w-xl text-sm text-zinc-500">
-              Search any company name or ticker symbol. The agent network retrieves live financial data and generates a full investment report.
-            </p>
-          </div>
-          {activeDataset && (
-            <Button onClick={onReset} variant="outline" className="shrink-0 rounded-full border-white/12 bg-white/5 font-bold text-zinc-300 hover:bg-white/8 hover:text-white">
-              New Research
-            </Button>
-          )}
-        </div>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
-            <Input
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') onSearch(); }}
-              disabled={running}
-              placeholder="Enter ticker or company name (e.g., Apple, AAPL, Tesla, NVDA)…"
-              className="h-12 rounded-2xl border-white/8 bg-white/5 pl-11 text-base text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/40 focus-visible:ring-emerald-500/20"
-            />
-          </div>
-          <motion.div whileHover={{ scale: running ? 1 : 1.02 }} whileTap={{ scale: running ? 1 : 0.97 }}>
-            <Button
-              onClick={() => onSearch()}
-              disabled={!company.trim() || running}
-              className="h-12 w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 font-black text-[#05080f] shadow-lg shadow-emerald-500/25 hover:from-emerald-400 hover:to-emerald-500 hover:shadow-emerald-500/35 disabled:opacity-40 sm:w-auto"
-            >
-              {running ? 'Researching…' : 'Analyze'}
-            </Button>
-          </motion.div>
-        </div>
-      </DashboardCard>
-
-      {/* Recommendations deck shown on empty Dashboard state */}
-      {!running && !activeDataset && (
-        <DashboardCard className="mb-5 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Quick recommendations</span>
-          </div>
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-5">
-            {RECOMMENDATIONS.map((rec) => {
-              const inWatchlist = watchlistItems.some((item) => item.ticker === rec.ticker);
-              return (
-                <div
-                  key={rec.ticker}
-                  className="flex items-center justify-between rounded-xl border border-white/5 bg-white/3 p-3 transition hover:border-emerald-500/30 hover:bg-emerald-500/5 group"
-                >
-                  <div className="min-w-0 cursor-pointer flex-1" onClick={() => onSearch(rec.ticker)}>
-                    <p className="text-sm font-black text-white">{rec.ticker}</p>
-                    <p className="text-[10px] text-zinc-500 truncate leading-normal">{rec.name}</p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={inWatchlist}
-                    onClick={() => onAddToWatchlist(rec.ticker, rec.name)}
-                    className={cn(
-                      'ml-2 h-7 w-7 rounded-lg flex items-center justify-center transition border',
-                      inWatchlist
-                        ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400'
-                        : 'border-white/10 bg-white/5 text-zinc-400 hover:border-emerald-500 hover:text-[#05080f] hover:bg-emerald-500'
-                    )}
-                  >
-                    {inWatchlist ? (
-                      <span className="text-[9px] font-black">Saved</span>
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </DashboardCard>
-      )}
-
-      {running ? (
-        <div className="flex items-center justify-center py-5">
-          <ProcessingPipeline steps={steps as any} progress={progress} phase={phase} />
-        </div>
-      ) : activeDataset ? (
-        <ResearchDashboard snapshot={activeDataset} steps={steps} watchlist={watchlistItems} onAdd={onAddToWatchlist} onSearch={onSearch} />
-      ) : (
-        <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-          <DashboardCard>
-            <SectionTitle title="Agent Network Graph" subtitle="Pipeline nodes display here during active research execution" />
-            <div className="mt-4 overflow-hidden rounded-2xl border border-white/8 bg-zinc-950">
-              <ResearchGraphView steps={steps as any} />
-            </div>
-          </DashboardCard>
-          <EmptyDashboard />
-        </div>
-      )}
-    </>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Research Dashboard (results view)
-// ─────────────────────────────────────────────────────────────────────────────
-function ResearchDashboard({
-  snapshot, steps, watchlist, onAdd, onSearch
-}: {
-  snapshot: ResearchSnapshot; steps: any[]; watchlist: any[];
-  onAdd: (t: string, n: string) => void; onSearch: (t?: string) => void;
-}) {
-  const { result, profile, quote, financials, newsData, rawMarkdown, timelineCount } = snapshot;
-  const derivedMetrics = useMemo(() => getDerivedMetrics(profile, financials, quote), [profile, financials, quote]);
-  const news = useMemo(() => normalizeNews(newsData, result), [newsData, result]);
-  const isSaved = watchlist.some((item) => item.ticker === (profile?.ticker || result.ticker));
-
-  // Determine sector-related recommended tickers based on the searched ticker
-  const similarTickers = useMemo(() => getSimilarTickers(profile?.ticker || result.ticker), [profile, result]);
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-      <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        {/* Graph */}
-        <DashboardCard delay={0.01}>
-          <SectionTitle title="Agent Network Graph" subtitle="Node transitions during the research lifecycle" />
-          <div className="mt-4 overflow-hidden rounded-2xl border border-white/8 bg-zinc-950">
-            <ResearchGraphView steps={steps} />
-          </div>
-        </DashboardCard>
-
-        {/* Company & verdict cards */}
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* Company info */}
-          <DashboardCard delay={0.02}>
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-lg font-black text-white shadow-lg shadow-emerald-500/25">
-                {(profile?.ticker || result.ticker || 'AI').slice(0, 4)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-600">Asset Verification</p>
-                  <button
-                    type="button"
-                    disabled={isSaved}
-                    onClick={() => onAdd(profile?.ticker || result.ticker, profile?.name || result.company)}
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition',
-                      isSaved
-                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-                        : 'border-white/10 bg-white/5 text-zinc-400 hover:border-emerald-500 hover:text-[#05080f] hover:bg-emerald-500'
-                    )}
-                  >
-                    <Plus className="h-3 w-3" />
-                    {isSaved ? 'In Watchlist' : 'Add to Watchlist'}
-                  </button>
-                </div>
-                <h3 className="mt-1 truncate text-xl font-black tracking-tight text-white">{profile?.name || result.company}</h3>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                  <Info label="Symbol" value={profile?.ticker || result.ticker || 'N/A'} />
-                  <Info label="Industry" value={profile?.finnhubIndustry || 'N/A'} />
-                  <Info label="Market Cap" value={derivedMetrics.marketCap} />
-                  <Info label="Country" value={profile?.country || 'N/A'} />
-                </div>
-              </div>
-            </div>
-          </DashboardCard>
-
-          {/* Verdict & confidence */}
-          <DashboardCard delay={0.06} glow>
-            <div className="flex h-full flex-col justify-between gap-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-600">AI Framework Output</p>
-                  <div className="mt-3"><RecommendationBadge verdict={result.verdict} /></div>
-                </div>
-                <div className="rounded-2xl bg-emerald-500/12 p-3 text-emerald-400 ring-1 ring-emerald-500/20">
-                  <TrendingUp className="h-6 w-6" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Score label="Research Confidence" value={result.confidence || 0} color="emerald" />
-              </div>
-            </div>
-          </DashboardCard>
-        </div>
-      </div>
-
-      {/* Metrics + Analytics */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <DashboardCard delay={0.1}>
-          <SectionTitle title="Valuation Metrics" subtitle="Key financial data vectors retrieved from market APIs" />
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {result.metrics?.map((item) => <MetricBox key={item.label} label={item.label} value={item.value} />)}
-          </div>
-        </DashboardCard>
-        <DashboardCard delay={0.14}>
-          <SectionTitle title="Network Analytics" subtitle={`${timelineCount} intelligence tracking steps resolved`} />
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Sentiment label="Pros Tracked" value={result.pros?.length || 0} positive />
-            <Sentiment label="Cons Tracked" value={result.cons?.length || 0} positive={false} />
-          </div>
-          <p className="mt-4 rounded-2xl border border-white/8 bg-white/3 p-3 text-sm leading-6 text-zinc-400 line-clamp-3">
-            {result.executiveSummary?.[0] || 'Executive report data mounting is pending operational milestones.'}
-          </p>
-        </DashboardCard>
-      </div>
-
-      {/* Charts */}
-      <DashboardCard delay={0.18}><DashboardCharts result={result} /></DashboardCard>
-
-      {/* News */}
-      <DashboardCard delay={0.22}>
-        <SectionTitle title="Primary Cited Sources" subtitle="Top referenced sources utilized during the analysis" />
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {(news.length ? news : fallbackNews).map((item, i) => <NewsCard key={`${item.title}-${i}`} {...item} />)}
-        </div>
-      </DashboardCard>
-
-      {/* Full report */}
-      <DashboardCard delay={0.26}>
-        <SectionTitle title="Complete AI Evaluation Report" subtitle="Structured analysis report from the LangGraph pipeline" />
-        <div className="mt-5 rounded-2xl border border-white/8 bg-zinc-950/60 p-5">
-          <MarkdownReport markdown={rawMarkdown || buildFallbackMarkdown(result)} />
-        </div>
-      </DashboardCard>
-
-      {/* Similar & Related Companies deck at bottom of search results */}
-      <DashboardCard delay={0.3} className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse" />
-          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Related & Similar Companies</span>
-        </div>
-        <p className="text-xs text-zinc-500 mb-4">Click any related company below to run a deep agent research loop, or click the plus button to add to watchlist.</p>
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-          {similarTickers.map((rec) => {
-            const inWatchlist = watchlist.some((item) => item.ticker === rec.ticker);
-            return (
-              <div
-                key={rec.ticker}
-                className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/3 p-4 transition hover:border-emerald-500/30 hover:bg-emerald-500/5 group"
-              >
-                <div className="min-w-0 cursor-pointer flex-1" onClick={() => onSearch(rec.ticker)}>
-                  <p className="text-base font-black text-white">{rec.ticker}</p>
-                  <p className="text-xs text-zinc-500 truncate mt-0.5">{rec.name}</p>
-                </div>
-                <button
-                  type="button"
-                  disabled={inWatchlist}
-                  onClick={() => onAdd(rec.ticker, rec.name)}
-                  className={cn(
-                    'ml-3 h-8 w-8 rounded-xl flex items-center justify-center transition border',
-                    inWatchlist
-                      ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400'
-                      : 'border-white/10 bg-white/5 text-zinc-400 hover:border-emerald-500 hover:text-[#05080f] hover:bg-emerald-500'
-                  )}
-                >
-                  {inWatchlist ? (
-                    <span className="text-[10px] font-black">Saved</span>
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </DashboardCard>
-    </motion.div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// History Pane
-// ─────────────────────────────────────────────────────────────────────────────
-function HistoryPane({ history, selectedId, onLoad, onRun }: { history: ResearchSnapshot[]; selectedId: string | null; onLoad: (id: string) => void; onRun: (ticker: string) => void }) {
-  return (
-    <DashboardCard>
-      <SectionTitle title="Research History" subtitle="Previous analyses stored locally across sessions" />
-      <div className="mt-5 grid gap-3">
-        {history.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/8 bg-white/3 p-8 text-center text-sm font-semibold text-zinc-600">
-            No research history yet. Run your first analysis to see it here.
-          </div>
-        ) : history.map((item) => (
-          <div key={item.id} className={cn('flex flex-col gap-3 rounded-2xl border transition sm:flex-row sm:items-center sm:justify-between', selectedId === item.id ? 'border-emerald-500/30 bg-emerald-500/8' : 'border-white/8 bg-white/3 hover:border-white/12 hover:bg-white/5')}>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-black text-emerald-400 ring-1 ring-emerald-500/20">{item.ticker}</span>
-                <h3 className="truncate text-base font-black text-white">{item.company}</h3>
-              </div>
-              <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-zinc-600">
-                <Clock3 className="h-3.5 w-3.5" /> {new Date(item.createdAt).toLocaleString()}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={() => onLoad(item.id)} variant="outline" className="rounded-full border-white/12 bg-white/5 font-bold text-zinc-300 hover:bg-white/8 hover:text-white">Load</Button>
-              <Button onClick={() => onRun(item.ticker)} className="rounded-full bg-emerald-500/15 font-bold text-emerald-400 ring-1 ring-emerald-500/25 hover:bg-emerald-500/25">Run Again</Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </DashboardCard>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Watchlist Pane (Persistent & backend integrated)
-// ─────────────────────────────────────────────────────────────────────────────
-function WatchlistPane({ watchlist, error, onResearch, onRemove }: {
-  watchlist: Array<{ ticker: string; name: string }>;
-  error: string | null;
-  onResearch: (ticker: string) => void;
-  onRemove: (ticker: string) => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <DashboardCard>
-        <SectionTitle title="Watchlist Portfolio" subtitle="Monitor saved assets and run parallel research pipelines" />
-
-        {/* Watchlist Instructions */}
-        <div className="mt-4 rounded-2xl border border-white/5 bg-white/3 p-4 flex gap-3 text-xs leading-5 text-zinc-400">
-          <InfoIcon className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-bold text-white mb-0.5">How it works</p>
-            <p>Your watchlist is stored securely in the cloud under your profile workspace. You can add assets using the quick recommendation row on the home dashboard, or by clicking the plus icon next to any active research search result. Save tickers to easily monitor or run deep loops on them later.</p>
-          </div>
-        </div>
-      </DashboardCard>
-
-      {error && (
-        <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400">
-          {error}
-        </p>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {watchlist.length === 0 ? (
-          <div className="col-span-full rounded-2xl border border-dashed border-white/8 bg-white/3 p-8 text-center text-sm font-semibold text-zinc-600">
-            Portfolio tracking list is empty. Add companies from the home desk to get started.
-          </div>
-        ) : watchlist.map((asset) => (
-          <DashboardCard key={asset.ticker} className="flex flex-col justify-between h-full">
+      <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6 relative z-10">
+        
+        {/* SECTION 2: PREMIUM METRIC CARDS */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
+            <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">Portfolio Value</span><Wallet className="h-4 w-4" /></div>
             <div>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xl font-black text-white">{asset.ticker}</p>
-                  <p className="text-sm font-semibold text-zinc-500 line-clamp-1">{asset.name}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onRemove(asset.ticker)}
-                  className="h-8 w-8 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 text-zinc-500 hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 transition"
-                  title="Remove from Watchlist"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              <div className="text-2xl font-black text-zinc-100">${MOCK_PORTFOLIO.value.toLocaleString()}</div>
+              <div className="flex items-center gap-1 text-xs mt-1 text-emerald-500 font-bold">
+                <ArrowUpRight className="h-3 w-3 stroke-[3]" />
+                <span>+${MOCK_PORTFOLIO.dailyChange.toLocaleString()} ({MOCK_PORTFOLIO.dailyPercent}%)</span>
               </div>
             </div>
-            <Button onClick={() => onResearch(asset.ticker)} className="mt-5 w-full rounded-full bg-emerald-500/15 font-bold text-emerald-400 ring-1 ring-emerald-500/25 hover:bg-emerald-500/25">
-              <PlayCircle className="mr-2 h-4 w-4" /> Deep Research
-            </Button>
           </DashboardCard>
-        ))}
-      </div>
+          
+          <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
+            <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">Market Sentiment</span><Activity className="h-4 w-4" /></div>
+            <div>
+              <div className="text-2xl font-black text-emerald-500">{MOCK_PORTFOLIO.sentiment}</div>
+              <div className="text-xs mt-1 text-zinc-500 font-semibold">Based on 142 AI signals</div>
+            </div>
+          </DashboardCard>
+          
+          <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
+            <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">AI Confidence Score</span><Sparkles className="h-4 w-4" /></div>
+            <div>
+              <div className="text-2xl font-black text-zinc-100">{activeDataset?.result?.confidence ? `${activeDataset.result.confidence}%` : '--'}</div>
+              <div className="text-xs mt-1 text-zinc-500 font-semibold">For {activeDataset?.ticker || 'current context'}</div>
+            </div>
+          </DashboardCard>
+
+          <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
+            <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">Active Watchlist</span><BookMarked className="h-4 w-4" /></div>
+            <div>
+              <div className="text-2xl font-black text-zinc-100">{watchlistItems.length}</div>
+              <div className="text-xs mt-1 text-zinc-500 font-semibold">Assets tracked</div>
+            </div>
+          </DashboardCard>
+
+          <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
+            <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">Market Status</span><Clock3 className="h-4 w-4" /></div>
+            <div>
+              <div className="text-2xl font-black text-emerald-500">Open</div>
+              <div className="text-xs mt-1 text-zinc-500 font-semibold">NASDAQ / NYSE</div>
+            </div>
+          </DashboardCard>
+        </div>
+
+        {/* Dynamic Centerpiece Area */}
+        <div className="flex flex-col flex-1 gap-6">
+          {running ? (
+            <DashboardCard className="py-16 flex items-center justify-center min-h-[500px] border-border/40 bg-zinc-900/20">
+               <ProcessingPipeline steps={steps as any} progress={progress} phase={phase} />
+            </DashboardCard>
+          ) : error ? (
+            <DashboardCard className="border-red-500/20 bg-red-500/5 min-h-[500px] flex items-center justify-center">
+              <div className="flex flex-col items-center text-center max-w-md p-8">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 shadow-inner"><TrendingDown className="h-8 w-8" /></div>
+                <h3 className="mb-3 text-2xl font-black text-zinc-100">Analysis Interrupted</h3>
+                <p className="mb-8 text-sm text-zinc-400 leading-relaxed">{error}</p>
+                <Button onClick={handleNewResearch} className="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 font-bold px-8">Acknowledge & Reset</Button>
+              </div>
+            </DashboardCard>
+          ) : activeDataset ? (
+            /* SECTION 3: AI RESEARCH PANEL CENTERPIECE */
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid lg:grid-cols-[1fr_400px] gap-6">
+              <div className="space-y-6">
+                <DashboardCard className="p-6 lg:p-8 border-border/40 shadow-md">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div className="flex items-center gap-5">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-emerald-500/20">
+                        {activeDataset.ticker.slice(0, 2)}
+                      </div>
+                      <div>
+                        <h2 className="text-3xl font-black tracking-tight text-zinc-100">{activeDataset.company}</h2>
+                        <div className="flex items-center gap-3 text-sm text-zinc-500 mt-1 font-medium">
+                          <span className="font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded">{activeDataset.ticker}</span>
+                          <span>•</span>
+                          <span>{activeDataset.profile?.finnhubIndustry || 'Technology'}</span>
+                          <span>•</span>
+                          <span>{activeDataset.profile?.country || 'US'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-3">
+                      <RecommendationBadge verdict={activeDataset.result.verdict} />
+                      <button onClick={() => handleAddToWatchlist(activeDataset.ticker, activeDataset.company)} className="text-xs font-bold text-zinc-400 hover:text-emerald-400 flex items-center gap-1.5 transition-colors group">
+                        <Plus className="h-3.5 w-3.5 group-hover:bg-emerald-500/20 rounded-full" /> Add to Watchlist
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Valuation / Financial Metrics Mini Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 p-5 rounded-2xl bg-[#09090b] border border-border/40 shadow-inner">
+                     {activeDataset.result.metrics?.slice(0,4).map(m => (
+                       <div key={m.label}>
+                         <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider mb-1">{m.label}</div>
+                         <div className="text-xl font-black text-zinc-200">{m.value}</div>
+                       </div>
+                     ))}
+                  </div>
+
+                  <DashboardCharts result={activeDataset.result} />
+                </DashboardCard>
+                
+                {/* Markdown Report Render */}
+                <DashboardCard className="p-6 lg:p-8 border-border/40 shadow-md">
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-2 border-b border-border/40 pb-4 text-zinc-100">
+                    <FileText className="h-6 w-6 text-emerald-500" /> AI Evaluation Report
+                  </h3>
+                  <MarkdownReport markdown={activeDataset.rawMarkdown} />
+                  
+                  {/* Smart Follow-ups */}
+                  {activeDataset.result.suggestedQuestions && activeDataset.result.suggestedQuestions.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-border/40">
+                      <h4 className="text-sm font-bold mb-4 uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                        <MessageCircle className="h-4 w-4" /> Smart Follow-ups
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {activeDataset.result.suggestedQuestions.map((q, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              const event = new CustomEvent('open-chat-with-query', { detail: q });
+                              window.dispatchEvent(event);
+                            }}
+                            className="rounded-full bg-zinc-900 border border-border/60 px-4 py-2 text-sm font-medium text-zinc-300 hover:border-emerald-500/50 hover:text-emerald-400 transition-all text-left shadow-sm hover:shadow-md"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </DashboardCard>
+              </div>
+
+              {/* Right Panel: AI Quick Insights & News */}
+              <div className="space-y-6">
+                <DashboardCard className="p-6 bg-gradient-to-b from-emerald-500/10 to-transparent border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-4 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Agent Recommendation
+                  </h3>
+                  <div className="text-4xl font-black mb-1 text-zinc-100 tracking-tight">{activeDataset.result.verdict}</div>
+                  <div className="text-sm text-zinc-400 mb-6 font-medium">{activeDataset.result.confidence}% Algorithm Confidence</div>
+                  
+                  <div className="space-y-3 mb-6">
+                    <div className="p-4 rounded-xl bg-background/50 border border-border/40 shadow-sm">
+                      <div className="text-xs font-black text-emerald-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 stroke-[3]" /> Primary Bull Signal</div>
+                      <div className="text-sm font-semibold text-zinc-300 leading-snug">{activeDataset.result.pros?.[0]?.text || 'Strong fundamentals detected across sector'}</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-background/50 border border-border/40 shadow-sm">
+                      <div className="text-xs font-black text-rose-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><TrendingDown className="h-3.5 w-3.5 stroke-[3]" /> Primary Bear Risk</div>
+                      <div className="text-sm font-semibold text-zinc-300 leading-snug">{activeDataset.result.cons?.[0]?.text || 'Macroeconomic headwinds indicate volatility'}</div>
+                    </div>
+                  </div>
+                  
+                  <Button onClick={() => setIsChatOpen(true)} className="w-full bg-emerald-500 text-white hover:bg-emerald-600 font-bold h-11 rounded-xl shadow-md shadow-emerald-500/20 transition-all active:scale-[0.98]">
+                    Interrogate Research Agent
+                  </Button>
+                </DashboardCard>
+
+                {/* Live News */}
+                <DashboardCard className="p-6 border-border/40 shadow-sm">
+                  <h3 className="text-sm font-bold uppercase tracking-widest mb-4 border-b border-border/40 pb-3 text-zinc-500">Live Intel</h3>
+                  <div className="space-y-5">
+                    {activeDataset.newsData?.slice(0,5).map((n, i) => (
+                      <a key={i} href={n.url || '#'} target="_blank" rel="noreferrer" className="block group">
+                        <div className="flex justify-between items-start mb-1">
+                          <div className="text-xs text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded uppercase">{n.source?.name || 'Bloomberg'}</div>
+                        </div>
+                        <div className="text-sm font-semibold text-zinc-300 group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">{n.title}</div>
+                      </a>
+                    ))}
+                  </div>
+                </DashboardCard>
+              </div>
+            </motion.div>
+          ) : (
+            /* SECTION 4: IDLE MARKET OVERVIEW & PORTFOLIO */
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid lg:grid-cols-[1fr_380px] gap-6">
+              
+              <div className="space-y-6">
+                {/* Hero Search in Idle State */}
+                <DashboardCard className="p-10 lg:p-16 flex flex-col items-center justify-center min-h-[350px] bg-zinc-900/30 border-border/40 text-center relative overflow-hidden shadow-inner">
+                  <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] mix-blend-screen pointer-events-none"></div>
+                  
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-xl shadow-emerald-500/20 mb-6">
+                    <Search className="h-8 w-8 stroke-[2.5]" />
+                  </div>
+                  <h2 className="text-4xl lg:text-5xl font-black tracking-tight mb-3 text-zinc-100">Global Market Intelligence</h2>
+                  <p className="text-zinc-400 mb-10 max-w-xl font-medium">Enter a stock ticker, company name, or ETF to generate an institutional-grade investment research report powered by AI agents.</p>
+                  
+                  <div className="relative w-full max-w-2xl group mx-auto mb-6">
+                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
+                    <Input
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="e.g. AAPL, Tesla, NVDA..."
+                      className="w-full bg-[#09090b] border-border/60 pl-14 pr-32 h-16 rounded-2xl text-lg shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500/50 transition-all placeholder:text-zinc-600 font-semibold"
+                    />
+                    <Button
+                      onClick={() => handleSearch()}
+                      disabled={!company.trim()}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-12 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 font-bold px-8 shadow-md"
+                    >
+                      Analyze
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Trending:</span>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {RECOMMENDATIONS.map(r => (
+                        <button key={r.ticker} onClick={() => handleSearch(r.ticker)} className="text-xs font-bold px-4 py-1.5 rounded-full bg-zinc-900 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:text-emerald-400 transition-all border border-border/40 text-zinc-400">
+                          {r.ticker}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </DashboardCard>
+
+                {/* Trending Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {MOCK_TRENDING.map(t => (
+                    <DashboardCard key={t.ticker} className="p-5 bg-zinc-900/40 hover:bg-zinc-800/60 border-border/40 transition-colors cursor-pointer group shadow-sm" onClick={() => handleSearch(t.ticker)}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="font-black text-xl text-zinc-200 group-hover:text-emerald-400 transition-colors">{t.ticker}</div>
+                        <div className={`text-xs font-black px-2 py-1 rounded-md ${t.change.startsWith('+') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                          {t.change}
+                        </div>
+                      </div>
+                      <div className="text-base font-bold text-zinc-400">${t.price.toFixed(2)}</div>
+                    </DashboardCard>
+                  ))}
+                </div>
+
+                {/* Recent Research History Grid */}
+                {history.length > 0 && (
+                  <DashboardCard className="p-6 border-border/40 shadow-sm bg-zinc-900/20">
+                    <div className="flex items-center justify-between mb-5 border-b border-border/40 pb-4">
+                      <h3 className="font-black text-zinc-100 flex items-center gap-2"><History className="h-5 w-5 text-emerald-500" /> Recent AI Reports</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {history.slice(0,4).map(item => (
+                        <div key={item.id} onClick={() => setSelectedSnapshotId(item.id)} className="p-4 rounded-xl border border-border/40 bg-[#09090b] hover:border-emerald-500/30 transition-all cursor-pointer flex justify-between items-center group shadow-sm">
+                          <div>
+                            <div className="font-black text-zinc-200 mb-1 group-hover:text-emerald-400 transition-colors truncate max-w-[150px] sm:max-w-full">{item.company}</div>
+                            <div className="text-xs text-zinc-500 font-medium flex items-center gap-2">
+                              <span className="font-bold text-zinc-400">{item.ticker}</span>
+                              <span>•</span>
+                              <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <RecommendationBadge verdict={item.result.verdict} />
+                        </div>
+                      ))}
+                    </div>
+                  </DashboardCard>
+                )}
+              </div>
+
+              {/* Right Panel: Mock Portfolio Details */}
+              <div className="space-y-6">
+                <DashboardCard className="p-6 border-border/40 shadow-sm bg-zinc-900/20">
+                  <h3 className="font-black mb-5 text-zinc-100 border-b border-border/40 pb-3 flex items-center gap-2">
+                    <PieChart className="h-5 w-5 text-emerald-500" /> Portfolio Allocation
+                  </h3>
+                  <div className="space-y-4">
+                    {MOCK_PORTFOLIO.allocations.map(a => (
+                      <div key={a.label}>
+                        <div className="flex justify-between text-sm mb-1.5 font-bold">
+                          <span className="text-zinc-300">{a.label}</span>
+                          <span className="text-zinc-500">{a.val}%</span>
+                        </div>
+                        <div className="h-2.5 w-full bg-[#09090b] rounded-full overflow-hidden shadow-inner border border-border/30">
+                          <div className={`h-full ${a.color} rounded-full`} style={{ width: `${a.val}%` }}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </DashboardCard>
+
+                <DashboardCard className="p-6 border-border/40 shadow-sm bg-zinc-900/20">
+                  <h3 className="font-black mb-5 text-zinc-100 border-b border-border/40 pb-3 flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-emerald-500" /> Recent Transactions
+                  </h3>
+                  <div className="space-y-3">
+                    {MOCK_PORTFOLIO.transactions.map(tx => (
+                      <div key={tx.id} className="flex justify-between items-center p-3.5 rounded-xl border border-border/40 bg-[#09090b] hover:bg-zinc-800/40 transition">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${tx.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>{tx.type}</span>
+                            <span className="font-black text-zinc-200">{tx.ticker}</span>
+                          </div>
+                          <div className="text-xs text-zinc-500 font-medium">{tx.date}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-black text-sm text-zinc-200">${tx.price.toFixed(2)}</div>
+                          <div className="text-xs text-zinc-500 font-medium">{tx.shares} shares</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </DashboardCard>
+              </div>
+
+            </motion.div>
+          )}
+        </div>
+      </main>
+
+      {/* Global Chatbot */}
+      <DashboardChatbot 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        messages={messages} 
+        onAsk={(text) => ask(text, scenario)}
+        onClear={clearChat}
+      />
+      
+      {/* First-Time Onboarding Modal */}
+      <OnboardingModal />
+      
+      {/* Settings Modal */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Profile Pane (Tab view with user pic)
-// ─────────────────────────────────────────────────────────────────────────────
-function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div>
-      <h3 className="text-lg font-black tracking-tight text-white">{title}</h3>
-      <p className="mt-1 text-sm text-zinc-600">{subtitle}</p>
-    </div>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{label}</p>
-      <p className="mt-1 truncate text-sm font-bold text-zinc-200">{value}</p>
-    </div>
-  );
-}
-
-function Score({ label, value, color }: { label: string; value: number; color: 'emerald' | 'red' | 'blue' }) {
-  const bars: Record<string, string> = { emerald: 'bg-emerald-500', red: 'bg-red-500', blue: 'bg-blue-500' };
-  return (
-    <div className="rounded-2xl border border-white/8 bg-white/3 p-3">
-      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{label}</p>
-      <p className="mt-1 text-xl font-black text-white">{value}%</p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/8">
-        <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} className={`h-full ${bars[color]}`} />
-      </div>
-    </div>
-  );
-}
-
-function MetricBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/8 bg-white/3 p-3 transition hover:border-emerald-500/20 hover:bg-emerald-500/5">
-      <p className="text-[10px] font-black uppercase tracking-wider text-zinc-600">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-white">{value}</p>
-    </div>
-  );
-}
-
-function Sentiment({ label, value, positive }: { label: string; value: number; positive: boolean }) {
-  return (
-    <div className={`rounded-2xl border p-4 text-center ${positive ? 'border-emerald-500/20 bg-emerald-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
-      <p className={`text-2xl font-black ${positive ? 'text-emerald-400' : 'text-red-400'}`}>{value}</p>
-      <p className={`mt-1 text-xs font-bold uppercase tracking-wider ${positive ? 'text-emerald-600' : 'text-red-600'}`}>{label}</p>
-    </div>
-  );
-}
-
-function NewsCard({ title, snippet, timestamp, url, source }: { title: string; snippet: string; timestamp: string; url: string; source: string }) {
-  const safeUrl = url && url !== '#' ? url : undefined;
-  return (
-    <motion.article whileHover={{ y: -3, borderColor: 'rgba(52,211,153,0.2)' }} className="rounded-2xl border border-white/8 bg-white/3 p-3 transition">
-      <p className="text-[10px] font-black uppercase tracking-wider text-emerald-500">{source}</p>
-      <h4 className="mt-2 line-clamp-2 text-sm font-black leading-5 text-white">{title}</h4>
-      <p className="mt-2 line-clamp-3 text-xs leading-5 text-zinc-500">{snippet}</p>
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold text-zinc-600">{timestamp}</span>
-        {safeUrl ? (
-          <a href={safeUrl} target="_blank" rel="noreferrer" className="rounded-full border border-emerald-500/20 bg-emerald-500/8 px-3 py-1 text-xs font-bold text-emerald-400 hover:bg-emerald-500/15">
-            Read →
-          </a>
-        ) : (
-          <span className="rounded-full border border-white/8 bg-white/3 px-3 py-1 text-xs font-bold text-zinc-600">No Link</span>
-        )}
-      </div>
-    </motion.article>
-  );
-}
-
-function EmptyDashboard() {
-  return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <DashboardCard>
-        <SectionTitle title="Asset Overview" subtitle="Run a search to populate this panel with company data" />
-        <div className="mt-6 h-32 animate-shimmer rounded-2xl" />
-      </DashboardCard>
-      <DashboardCard>
-        <SectionTitle title="Analytics Framework" subtitle="Evaluation charts appear after report generation" />
-        <div className="mt-6 h-32 animate-shimmer rounded-2xl" />
-      </DashboardCard>
-    </div>
-  );
-}
-
-function buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news }: { result: ResearchResult; rawMarkdown?: string; timeline: any[]; profile: any; quote: any; financials: any; news: any[] }): ResearchSnapshot {
-  return { id: `${result.ticker || result.company}-${Date.now()}`, company: profile?.name || result.company, ticker: profile?.ticker || result.ticker || result.company, createdAt: new Date().toISOString(), result, rawMarkdown: rawMarkdown || buildFallbackMarkdown(result), timelineCount: timeline.length, profile, quote, financials, newsData: Array.isArray(news) ? news : [] };
-}
-
-function getDerivedMetrics(profile: any, financials: any, quote: any) {
-  const fmt = (val: any, prefix = '', suffix = '') => {
-    if (val === undefined || val === null || Number.isNaN(Number(val))) return 'N/A';
-    return `${prefix}${Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 })}${suffix}`;
-  };
-  const metrics = financials?.metric || {};
-  const marketCap = profile?.marketCapitalization != null ? fmt(profile.marketCapitalization, '$', ' B') : 'N/A';
-  return {
-    marketCap,
-    items: [
-      { label: 'Current Price', value: quote?.c != null ? fmt(quote.c, '$') : 'N/A' },
-      { label: 'Previous Close', value: quote?.pc != null ? fmt(quote.pc, '$') : 'N/A' },
-      { label: 'Day High', value: quote?.h != null ? fmt(quote.h, '$') : 'N/A' },
-      { label: 'Day Low', value: quote?.l != null ? fmt(quote.l, '$') : 'N/A' },
-      { label: 'Market Cap', value: marketCap },
-      { label: 'P/E Ratio', value: metrics.peTTM != null ? fmt(metrics.peTTM) : metrics.peBasicExclExtraTTM != null ? fmt(metrics.peBasicExclExtraTTM) : 'N/A' },
-      { label: 'EPS', value: metrics.epsTTM != null ? fmt(metrics.epsTTM, '$') : 'N/A' },
-      { label: 'Dividend Yield', value: metrics.dividendYieldIndicatedAnnual != null ? fmt(metrics.dividendYieldIndicatedAnnual, '', '%') : 'N/A' },
-      { label: 'Beta', value: metrics.beta != null ? fmt(metrics.beta) : 'N/A' },
-      { label: '52 Week High', value: metrics['52WeekHigh'] != null ? fmt(metrics['52WeekHigh'], '$') : 'N/A' },
-      { label: '52 Week Low', value: metrics['52WeekLow'] != null ? fmt(metrics['52WeekLow'], '$') : 'N/A' },
-      { label: '52W Return', value: metrics['52WeekPriceReturnDaily'] != null ? fmt(metrics['52WeekPriceReturnDaily'], '', '%') : 'N/A' },
-    ],
-  };
-}
-
-function normalizeNews(newsData: any[], result: ResearchResult) {
-  if (Array.isArray(newsData) && newsData.length > 0) {
-    return newsData.slice(0, 5).map((n: any) => ({ title: n.title || 'Untitled', snippet: n.description || 'No snippet.', source: n.source?.name || 'NewsAPI', timestamp: n.publishedAt ? new Date(n.publishedAt).toLocaleDateString() : '--', url: n.url || '#' }));
-  }
-  return (result.citations || []).slice(0, 5).map((item) => ({ title: item.title, snippet: item.snippet, source: item.source, timestamp: item.timestamp, url: item.url }));
-}
-
-function buildFallbackMarkdown(result: ResearchResult) {
-  return `# ${result.company} Investment Report\n\n## Executive Summary\n${(result.executiveSummary || []).map((item) => `- ${item}`).join('\n') || '- Report generated from the latest research run.'}\n\n## Final Recommendation\n**${result.verdict}** with **${result.confidence}% confidence**.`;
-}
-
-// Determine sector-related recommended tickers
-function getSimilarTickers(ticker: string) {
-  const t = ticker.toUpperCase();
-  if (['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'GOOG', 'AMD', 'INTC', 'NFLX', 'META', 'AMZN'].includes(t)) {
-    return [
-      { ticker: 'MSFT', name: 'Microsoft Corporation' },
-      { ticker: 'NVDA', name: 'NVIDIA Corporation' },
-      { ticker: 'AMD', name: 'Advanced Micro Devices' },
-      { ticker: 'GOOGL', name: 'Alphabet Inc.' }
-    ].filter(item => item.ticker !== t).slice(0, 3);
-  }
-  if (['TSLA', 'NIO', 'RIVN', 'LCID', 'F', 'GM'].includes(t)) {
-    return [
-      { ticker: 'RIVN', name: 'Rivian Automotive' },
-      { ticker: 'F', name: 'Ford Motor Company' },
-      { ticker: 'GM', name: 'General Motors Company' },
-      { ticker: 'TSLA', name: 'Tesla, Inc.' }
-    ].filter(item => item.ticker !== t).slice(0, 3);
-  }
-  return [
-    { ticker: 'AAPL', name: 'Apple Inc.' },
-    { ticker: 'MSFT', name: 'Microsoft Corp' },
-    { ticker: 'TSLA', name: 'Tesla Inc.' }
-  ].filter(item => item.ticker !== t).slice(0, 3);
-}
-
-const fallbackNews = [{ title: 'Research sources will appear here', snippet: 'News cards are populated from citations after the backend run completes.', timestamp: '--', url: '#', source: 'AI Research' }];
-

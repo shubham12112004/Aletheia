@@ -88,9 +88,9 @@ export function LandingView() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 bg-grid opacity-40" />
-      <div className="pointer-events-none fixed inset-0 bg-radial-fade" />
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+      <div className="pointer-events-none fixed inset-0 bg-grid opacity-10" />
+      <div className="pointer-events-none fixed inset-0 bg-background/80 backdrop-blur-[1px]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
 
       <div className="relative">
         {/* Nav */}
@@ -188,22 +188,22 @@ export function LandingView() {
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button
-                  onClick={() => navigate('auth', 'register')}
                   size="lg"
-                  className="group relative h-12 gap-2 overflow-hidden rounded-xl bg-primary px-7 text-base font-semibold text-primary-foreground shadow-xl shadow-primary/30 transition-all hover:brightness-110"
+                  onClick={() => navigate('register')}
+                  className="group relative overflow-hidden rounded-xl bg-primary px-8 text-primary-foreground font-semibold shadow-md transition-all hover:bg-primary/90 hover:shadow-lg active:scale-[0.98]"
                 >
-                  <span className="pointer-events-none absolute inset-0 rounded-xl bg-primary opacity-60 blur-md transition-opacity group-hover:opacity-90" />
-                  <Sparkles className="relative h-4 w-4" />
-                  <span className="relative">Launch Workspace</span>
-                  <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  <span className="relative flex items-center gap-2">
+                    Enter Workspace <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
                 </Button>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex h-12 items-center gap-1.5 rounded-xl border border-border/70 glass px-6 text-sm font-medium text-foreground transition-colors hover:bg-card/70"
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate('login')}
+                  className="rounded-xl border border-border bg-background px-8 shadow-sm hover:bg-muted font-semibold active:scale-[0.98]"
                 >
-                  See how it works
-                  <ArrowRight className="h-4 w-4" />
-                </a>
+                  Sign In
+                </Button>
               </div>
 
               <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">

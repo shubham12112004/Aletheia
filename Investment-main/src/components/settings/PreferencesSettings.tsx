@@ -58,6 +58,30 @@ export function PreferencesSettings({ settings }: { settings: any }) {
           </div>
         </SettingBlock>
 
+        <SettingBlock icon={SlidersHorizontal} title="Display & Language" subtitle="Customize your workspace aesthetics and localization">
+          <div className="grid gap-3 sm:grid-cols-2 mb-4">
+            <SegmentedControl 
+              value="dark" 
+              options={[['dark', 'Dark Theme (Active)'], ['light', 'Light Theme (Disabled)']]} 
+              onChange={() => {}} 
+            />
+            <SegmentedControl 
+              value="en" 
+              options={[['en', 'English'], ['fr', 'Français'], ['es', 'Español']]} 
+              onChange={() => {}} 
+            />
+          </div>
+        </SettingBlock>
+
+        <SettingBlock icon={Database} title="Privacy & Notifications" subtitle="Manage your communications and telemetry">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Toggle label="Email notifications" checked={true} onChange={() => {}} />
+            <Toggle label="Market alerts (Push)" checked={true} onChange={() => {}} />
+            <Toggle label="Share anonymous telemetry" checked={false} onChange={() => {}} />
+            <Toggle label="Enhanced privacy mode" checked={true} onChange={() => {}} />
+          </div>
+        </SettingBlock>
+
       </div>
     </DashboardCard>
   );

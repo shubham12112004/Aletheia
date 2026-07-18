@@ -67,7 +67,7 @@ export function DashboardCharts({ result }: { result: ResearchResult }) {
               onClick={() => setMode(item.id)}
               className={cn(
                 'rounded-full px-3 py-1.5 text-xs font-bold transition',
-                mode === item.id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-blue-700'
+                mode === item.id ? 'bg-blue-600 text-foreground shadow-sm' : 'text-slate-500 hover:text-blue-700'
               )}
             >
               {item.label}

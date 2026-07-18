@@ -13,11 +13,11 @@ import type {
 type Status = 'idle' | 'running' | 'complete';
 
 const GRAPH_STEPS: Omit<ArchStep, 'status'>[] = [
-  { id: 'search', index: 1, title: 'Searching Company', subtitle: 'Step 1', description: 'Finding company basic identification parameters', detail: 'Searching universe...' },
-  { id: 'profile', index: 2, title: 'Loading Company Profile', subtitle: 'Step 2', description: 'Fetching structural company profile details', detail: 'Loading...' },
-  { id: 'news', index: 3, title: 'Collecting News', subtitle: 'Step 3', description: 'Fetching latest news indexing records', detail: 'Loading news items...' },
-  { id: 'tavily', index: 4, title: 'Web Research', subtitle: 'Step 4', description: 'Searching external web sources via Tavily', detail: 'Searching...' },
-  { id: 'groq', index: 5, title: 'Generating AI Report', subtitle: 'Step 5', description: 'Groq LLM engine preparing comprehensive investment brief', detail: 'Thinking...' },
+  { id: 'search', index: 1, title: 'Analyzing financial statements...', subtitle: 'Step 1', description: 'Ingesting raw financial statements and metrics', detail: 'Analyzing statements...' },
+  { id: 'profile', index: 2, title: 'Reading latest market trends...', subtitle: 'Step 2', description: 'Cross-referencing live market data and pricing', detail: 'Reading trends...' },
+  { id: 'news', index: 3, title: 'Evaluating risks and sentiment...', subtitle: 'Step 3', description: 'Scraping news for macroeconomic and sentiment shifts', detail: 'Evaluating risks...' },
+  { id: 'tavily', index: 4, title: 'Comparing competitors...', subtitle: 'Step 4', description: 'Searching external web for competitor context', detail: 'Comparing competitors...' },
+  { id: 'groq', index: 5, title: 'Generating AI report...', subtitle: 'Step 5', description: 'Synthesizing data into professional analyst structure', detail: 'Generating report...' },
 ];
 
 function nowStamp() {
@@ -41,6 +41,7 @@ const formatMarketCap = (v: number) => {
 export function useResearchAgent() {
   const [status, setStatus] = useState<Status>('idle');
   const [phase, setPhase] = useState<ResearchPhase>('idle');
+  const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<ArchStep[]>(freshSteps);
   const [result, setResult] = useState<ResearchResult | null>(null); 
   const [rawMarkdown, setRawMarkdown] = useState<string>(''); 
@@ -84,6 +85,11 @@ export function useResearchAgent() {
 
   const run = useCallback(
     async (company: string, scenario: MacroScenario, regulatory: boolean, insider: boolean) => {
+      if (!company.trim()) return;
+      setStatus('running');
+      setError(null);
+      setPhase('initializing');
+      
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
         progressIntervalRef.current = null;
@@ -107,8 +113,6 @@ export function useResearchAgent() {
       ]);
       setStreamedSections([]);
       msgIdRef.current = 0;
-      setStatus('running');
-      setPhase('initializing');
       updateStepsAndPhase(10);
 
       const milestones = [20, 40, 60, 80];
@@ -141,12 +145,12 @@ export function useResearchAgent() {
           focus: { regulatory, insider },
         });
         
-        // Ã¢Å“â€¦ Handle failed states immediately before allocating downstream parameters
+        // ✅ Handle failed states immediately before allocating downstream parameters
         if (response.success === false) {
           throw new Error(response.message || 'The research server rejected this operation.');
         }
 
-        // Ã¢Å“â€¦ Resilient markdown content string extraction strategy
+        // ✅ Resilient markdown content string extraction strategy
         const markdownContent = typeof response.report === 'string'
           ? response.report
           : response.report?.report || JSON.stringify(response.report || 'No report found.');
@@ -171,7 +175,7 @@ export function useResearchAgent() {
           return val !== undefined && val !== null ? `${prefix}${Number(val).toFixed(2)}${suffix}` : 'N/A';
         };
 
-        // Ã¢Å“â€¦ All fields are mapped directly from the flat response root object
+        // ✅ All fields are mapped directly from the flat response root object
         const cleanResult: ResearchResult = {
           company: response.company || response.profile?.name || company || 'Unknown Company',
           ticker: response.ticker || response.profile?.ticker || 'N/A',
@@ -185,7 +189,7 @@ export function useResearchAgent() {
             {
               label: "Current Price",
               value: response.quote?.c ? `$${Number(response.quote.c).toLocaleString()}` : "N/A",
-              // Ã¢Å“â€¦ Swapped dynamic change parameter to use percentage updates (dp)
+              // ✅ Swapped dynamic change parameter to use percentage updates (dp)
               delta: response.quote?.dp ? `${response.quote.dp >= 0 ? '+' : ''}${response.quote.dp.toFixed(2)}%` : "",
               tone: response.quote?.dp ? (response.quote.dp >= 0 ? 'positive' : 'negative') : 'neutral',
               description: "Current market price index",
@@ -255,10 +259,11 @@ export function useResearchAgent() {
             timestamp: item.publishedAt || '',
             url: item.url || '#'
           })) : (Array.isArray(response.citations) ? response.citations : []),
-          // Ã¢Å“â€¦ Map real arrays downstream directly from server payload
+          // ✅ Map real arrays downstream directly from server payload
           revenueSeries: Array.isArray(response.revenueSeries) ? response.revenueSeries : [],
           regulatoryNotes: Array.isArray(response.regulatoryNotes) ? response.regulatoryNotes : [],
           insiderNotes: Array.isArray(response.insiderNotes) ? response.insiderNotes : [],
+          suggestedQuestions: Array.isArray(response.suggestedQuestions) ? response.suggestedQuestions : [],
         };
         
         setResult(cleanResult);
@@ -286,6 +291,7 @@ export function useResearchAgent() {
         
         setStatus('idle');
         setPhase('idle');
+        setError(error instanceof Error ? error.message : 'Research failed');
         setSteps((prev) => prev.map((step) => step.status === 'active' ? { ...step, status: 'failed' } : step));
         setThinking((prev) => [...prev, error instanceof Error ? error.message : 'Research failed']);
         setLogs((prev) => [
@@ -304,6 +310,7 @@ export function useResearchAgent() {
     }
     setStatus('idle');
     setPhase('idle');
+    setError(null);
     setSteps(freshSteps());
     setResult(null);
     setRawMarkdown('');
@@ -363,10 +370,15 @@ export function useResearchAgent() {
     };
   }, []);
 
+  const clearChat = useCallback(() => {
+    setMessages([]);
+  }, []);
+
   // Note: Unused socketId, replay, and canReplay variables removed from type bindings return signature
   return {
     status,
     phase,
+    error,
     steps,
     result,
     rawMarkdown, 
@@ -383,5 +395,6 @@ export function useResearchAgent() {
     run,
     reset,
     ask,
+    clearChat,
   };
 }

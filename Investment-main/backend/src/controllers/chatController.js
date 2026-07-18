@@ -1,9 +1,6 @@
-const OpenAI = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const groq = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1"
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 exports.handleChat = async (req, res) => {
     try {
@@ -20,23 +17,24 @@ exports.handleChat = async (req, res) => {
             ? `Company: ${context.company || "Unknown"}, Ticker: ${context.ticker || "N/A"}, Verdict: ${context.verdict || "N/A"}, Confidence: ${context.confidence || 0}%`
             : "No research context available.";
 
-        const response = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-                {
-                    role: "system",
-                    content: `You are Aletheia, an expert AI investment analyst assistant. You provide concise, insightful answers about investment research. Current macro scenario: ${scenario || "Baseline"}. Research context: ${contextSummary}`
-                },
-                {
-                    role: "user",
-                    content: question
-                }
-            ],
-            temperature: 0.4,
-            max_tokens: 512
+        const systemPrompt = `You are Aletheia, an expert AI investment analyst assistant and guide for the Aletheia Research Workspace.
+Your primary focus is to assist users with understanding the Aletheia project and interpreting the current research context. 
+- You can explain how Aletheia fetches data (SEC filings, news sentiment, real-time market data).
+- You can provide insights on the current research context: ${contextSummary}
+- The current macro scenario applied is: ${scenario || "Baseline"}.
+
+CRITICAL INSTRUCTIONS:
+1. Prioritize answering questions about the Aletheia project, how the site works, and the user's CURRENT active search context. 
+2. If asked about real-world data or general knowledge outside the context, answer it, but always gently steer the focus back to how Aletheia's tools can help analyze it better.
+3. Keep answers concise, insightful, and easy to read.`;
+
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-pro-latest", // using pro for dashboard as it handles context better
+            systemInstruction: systemPrompt 
         });
 
-        const answer = response.choices[0]?.message?.content?.trim() || "Unable to generate a response.";
+        const result = await model.generateContent(question);
+        const answer = result.response.text().trim();
 
         return res.status(200).json({
             success: true,
@@ -45,7 +43,6 @@ exports.handleChat = async (req, res) => {
 
     } catch (err) {
         console.error("Chat Controller Error:", err);
-
         return res.status(500).json({
             success: false,
             message: err.message || "Failed to process chat query.",

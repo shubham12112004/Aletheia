@@ -105,4 +105,5 @@ export type ResearchResult = {
   revenueSeries: { quarter: string; revenue: number; profit: number }[];
   regulatoryNotes: string[];
   insiderNotes: string[];
+  suggestedQuestions?: string[];
 };

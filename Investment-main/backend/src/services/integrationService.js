@@ -507,11 +507,10 @@ function buildFallbackReport(context) {
         : 'unavailable';
     const pe = metrics.peTTM != null ? Number(metrics.peTTM).toFixed(2) : 'unavailable';
     const return52 = metrics.week52Return != null ? `${Number(metrics.week52Return).toFixed(2)}%` : 'unavailable';
-
     return {
         company: profile.name || 'Unknown',
         ticker: profile.ticker || 'N/A',
-        verdict: 'PASS',
+        verdict: 'HOLD',
         confidence: 0,
         executiveSummary: [
             `${profile.name || 'This company'} is trading at ${price}.`,
@@ -529,7 +528,12 @@ function buildFallbackReport(context) {
             timestamp: article.publishedAt || '',
             snippet: article.description || '',
         })),
-        report: `# ${profile.name || 'Company'} Research Snapshot\n\n## Market Data\n- Current price: ${price}\n- 52-week range: ${range}\n- 52-week return: ${return52}\n- Trailing P/E: ${pe}\n\n## Status\nThe AI narrative could not be generated for this request. The figures above are live data from the research sources and should be used as a starting point for further due diligence.`,
+        suggestedQuestions: [
+            "What are the main risks associated with this asset?",
+            "Show valuation metrics compared to industry average",
+            "What is the long term outlook?"
+        ],
+        report: `# Executive Summary\nData services are operating in fallback mode due to a temporary AI outage. Please review raw metrics directly.\n\n## Investment Recommendation\n**HOLD** (0% Confidence)\n\n## Why?\nThe AI reasoning engine is currently disconnected.\n\n## Key Positive Signals\n- Live market data retrieval successful\n\n## Risk Factors\n- Fundamental analysis is severely limited without AI processing\n\n## Financial Metrics\n- Current price: ${price}\n- 52-week range: ${range}\n- Trailing P/E: ${pe}\n\n## AI Confidence Score\n0% Confidence - Engine Offline\n\n## Bull Case\nN/A\n\n## Bear Case\nN/A\n\n## Final Conclusion\nExercise caution and rely on human due diligence until the agent network reconnects.`,
     };
 }
 
@@ -537,7 +541,55 @@ exports.generateGroqReport = async ({ profile, quote, financials, news, web }) =
     const context = buildResearchContext({ profile, quote, financials, news, web });
 
     try {
-        const prompt = `You are a professional CFA investment analyst. Analyze the following compact, verified dataset. Do not invent facts. Return only valid JSON matching this schema:\n\n{\n  "company":"",\n  "ticker":"",\n  "verdict":"INVEST" | "PASS",\n  "confidence":0,\n  "executiveSummary":[""],\n  "pros":[{"text":"reason","weight":"high" | "medium" | "low"}],\n  "cons":[{"text":"reason","weight":"high" | "medium" | "low"}],\n  "citations":[],\n  "report":"markdown report"\n}\n\nDATA:\n${JSON.stringify(context)}`;
+        const prompt = `You are a professional CFA investment analyst at a top-tier hedge fund. Analyze the following compact, verified dataset. Do not invent facts. Return only valid JSON matching this schema:
+
+{
+  "company":"",
+  "ticker":"",
+  "verdict":"BUY" | "HOLD" | "SELL",
+  "confidence":0,
+  "executiveSummary":[""],
+  "pros":[{"text":"reason","weight":"high" | "medium" | "low"}],
+  "cons":[{"text":"reason","weight":"high" | "medium" | "low"}],
+  "citations":[],
+  "suggestedQuestions":["string", "string", "string"],
+  "report":"markdown report"
+}
+
+REPORT REQUIREMENTS (The 'report' string must strictly use these exact Markdown headers):
+# Executive Summary
+(A concise overview)
+
+## Investment Recommendation
+(Buy/Hold/Sell)
+
+## Why?
+(Explain the reasoning)
+
+## Key Positive Signals
+- (Revenue growth, Profitability, etc)
+
+## Risk Factors
+(Highlight possible risks)
+
+## Financial Metrics
+(Present data cleanly in bullet points or markdown tables)
+
+## AI Confidence Score
+[Score]% Confidence
+(Explain why)
+
+## Bull Case
+(Why this investment could perform well)
+
+## Bear Case
+(Potential downside)
+
+## Final Conclusion
+(Short actionable summary)
+
+DATA:
+${JSON.stringify(context)}`;
 
         const response = await groq.chat.completions.create({
             model: 'llama-3.3-70b-versatile',
