@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, ChevronDown, Clock3, Database, Globe2,
-  PlayCircle, Search, Settings, SlidersHorizontal, TrendingUp, User, X,
+  Bell, ChevronDown, Clock3, Database, 
+  PlayCircle, Search, Settings, TrendingUp, User,
   Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
-  Camera, LogOut, Sun, Moon
+  LogOut, Sun, Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,12 +23,9 @@ import { SettingsLayout } from './settings/SettingsLayout';
 import { cn } from '@/lib/utils';
 import {
   getWatchlist, addToWatchlist, removeFromWatchlist,
-  postUpdateProfile, postUpdatePassword, deleteAccount
-} from '@/lib/api';
+  } from '@/lib/api';
 
 type ActiveTab = 'dashboard' | 'history' | 'watchlist' | 'profile' | 'settings';
-type AnalysisDepth = 'fast' | 'deep';
-type ApiEndpoint = 'production' | 'staging';
 type NotificationItem = {
   id: string; title: string; desc: string; type: 'info' | 'success' | 'warn'; time: string;
 };
@@ -57,7 +54,7 @@ const RECOMMENDATIONS = [
 ];
 
 export function DashboardView() {
-  const { user, token, logout, updateUser } = useAuth();
+  const { user, token, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask } = useResearchAgent();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -69,10 +66,6 @@ export function DashboardView() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [history, setHistory] = useState<ResearchSnapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
-  const [apiEndpoint, setApiEndpoint] = useState<ApiEndpoint>('production');
-  const [analysisDepth, setAnalysisDepth] = useState<AnalysisDepth>('deep');
-  const [quotaAlerts, setQuotaAlerts] = useState(true);
-  const [socketProgress, setSocketProgress] = useState(true);
 
   // Dynamic notifications state
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -119,7 +112,7 @@ export function DashboardView() {
   }, [token]); // eslint-disable-line
 
   useEffect(() => { try { const stored = localStorage.getItem(STORAGE_KEY); if (stored) setHistory(JSON.parse(stored)); } catch { setHistory([]); } }, []);
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 20))); } catch {} }, [history]);
+  useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 20))); } catch (e) { /* ignore */ } }, [history]);
 
   const running = status === 'running';
   const hasResult = status === 'complete' && Boolean(result);
@@ -886,46 +879,6 @@ function EmptyDashboard() {
         <div className="mt-6 h-32 animate-shimmer rounded-2xl" />
       </DashboardCard>
     </div>
-  );
-}
-
-function SettingBlock({ icon: Icon, title, subtitle, children }: { icon: typeof Database; title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
-      <div className="flex items-start gap-3">
-        <div className="rounded-2xl bg-emerald-500/12 p-3 text-emerald-400 ring-1 ring-emerald-500/20">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-black text-white">{title}</p>
-          <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
-          <div className="mt-4">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SegmentedControl({ value, options, onChange }: { value: string; options: Array<[string, string]>; onChange: (v: string) => void }) {
-  return (
-    <div className="inline-flex rounded-full border border-white/10 bg-white/4 p-1">
-      {options.map(([id, label]) => (
-        <button key={id} type="button" onClick={() => onChange(id)} className={cn('rounded-full px-4 py-2 text-sm font-bold transition', value === id ? 'bg-emerald-500 text-[#05080f] shadow-md' : 'text-zinc-500 hover:text-zinc-300')}>
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" onClick={() => onChange(!checked)} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/3 p-3 text-left transition hover:border-white/12 hover:bg-white/5">
-      <span className="text-sm font-bold text-zinc-300">{label}</span>
-      <span className={cn('relative h-6 w-11 rounded-full transition-colors', checked ? 'bg-emerald-500' : 'bg-white/12')}>
-        <span className={cn('absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all', checked ? 'left-6' : 'left-1')} />
-      </span>
-    </button>
   );
 }
 
