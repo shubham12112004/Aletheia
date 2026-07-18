@@ -69,6 +69,7 @@ const googleLogin = asyncHandler(async (req, res) => {
   const token = signToken({
     sub: String(user._id),
     email: user.email,
+    tokenVersion: user.tokenVersion || 0,
   });
 
   return success(res, { user, token }, 'Authenticated with Google');
@@ -99,6 +100,7 @@ const emailSignup = asyncHandler(async (req, res) => {
   const token = signToken({
     sub: String(user._id),
     email: user.email,
+    tokenVersion: user.tokenVersion || 0,
   });
 
   return success(res, { user: userObj, token }, 'Account created successfully');
@@ -129,6 +131,7 @@ const emailLogin = asyncHandler(async (req, res) => {
   const token = signToken({
     sub: String(user._id),
     email: user.email,
+    tokenVersion: user.tokenVersion || 0,
   });
 
   return success(res, { user: userObj, token }, 'Logged in successfully');

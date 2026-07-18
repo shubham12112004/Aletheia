@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema(
     password: { type: String },
     picture: { type: String },
     lastLoginAt: { type: Date },
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

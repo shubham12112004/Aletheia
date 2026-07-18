@@ -10,7 +10,21 @@ const requireAuth = asyncHandler(async (req, _res, next) => {
   }
 
   const token = header.slice('Bearer '.length);
-  req.user = jwt.verify(token, env.JWT_SECRET);
+  const decoded = jwt.verify(token, env.JWT_SECRET);
+  
+  // Find user to check tokenVersion (invalidates old tokens on password change)
+  const User = require('../models/User');
+  const user = await User.findById(decoded.sub);
+  
+  if (!user) {
+    throw new AppError('User no longer exists', 401);
+  }
+  
+  if (decoded.tokenVersion !== undefined && user.tokenVersion !== decoded.tokenVersion) {
+    throw new AppError('Session expired. Please log in again.', 401);
+  }
+  
+  req.user = user;
   next();
 });
 

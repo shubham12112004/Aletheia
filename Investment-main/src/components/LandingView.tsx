@@ -115,13 +115,17 @@ export function LandingView() {
               <a href="#capabilities" className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Capabilities
               </a>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <BookOpen className="h-4 w-4" />
-                Docs
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" asChild>
+                <a href="https://github.com/shubham12112004/Aletheia#readme" target="_blank" rel="noopener noreferrer">
+                  <BookOpen className="h-4 w-4" />
+                  Docs
+                </a>
               </Button>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <Github className="h-4 w-4" />
-                GitHub
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" asChild>
+                <a href="https://github.com/shubham12112004" target="_blank" rel="noopener noreferrer">
+                  <Github className="h-4 w-4" />
+                  GitHub
+                </a>
               </Button>
             </nav>
 
