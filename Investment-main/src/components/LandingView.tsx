@@ -2,6 +2,7 @@ import { AgentNetworkMap } from '@/components/AgentNetworkMap';
 import { ComparisonMatrix } from '@/components/ComparisonMatrix';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import {
     Activity,
     ArrowRight,
@@ -16,6 +17,8 @@ import {
     Search,
     ShieldCheck,
     Sparkles,
+    Sun,
+    Moon,
 } from 'lucide-react';
 
 // Note: Global window interface for turnstile left intact for when it's re-enabled later
@@ -80,6 +83,7 @@ function SectionDivider({ label }: { label?: string }) {
 
 export function LandingView() {
   const { navigate } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -122,6 +126,14 @@ export function LandingView() {
             </nav>
 
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="text-muted-foreground hover:text-foreground h-8 w-8"
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

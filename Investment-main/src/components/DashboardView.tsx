@@ -4,11 +4,12 @@ import {
   Bell, ChevronDown, Clock3, Database, Globe2,
   PlayCircle, Search, Settings, SlidersHorizontal, TrendingUp, User, X,
   Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
-  Camera, LogOut
+  Camera, LogOut, Sun, Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useResearchAgent } from '@/hooks/useResearchAgent';
 import { MACRO_SCENARIOS, getChatIntro } from '@/lib/mockData';
 import type { FocusFilters, MacroScenario, ResearchResult } from '@/lib/types';
@@ -56,6 +57,7 @@ const RECOMMENDATIONS = [
 
 export function DashboardView() {
   const { user, token, logout, updateUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask } = useResearchAgent();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [company, setCompany] = useState('');
@@ -214,6 +216,17 @@ export function DashboardView() {
 
           {/* Right controls */}
           <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="h-9 w-9 rounded-full text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+
             {/* Real-time Notifications Bell */}
             <div className="relative">
               <Button
