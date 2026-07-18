@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm"; // Adds support for GitHub Flavored Markdown (tables, checklists, etc.)
-import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Target, ShieldCheck, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Lightbulb, Target, Activity } from "lucide-react";
 
 export function MarkdownReport({
   markdown,

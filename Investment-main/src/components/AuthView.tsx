@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import {
-  ArrowLeft, ArrowRight, BrainCircuit, KeyRound, Loader2,
+  ArrowLeft, BrainCircuit, KeyRound, Loader2,
   Lock, Mail, ShieldCheck, TrendingUp, User, Zap, CheckCircle2,
   Eye, EyeOff, XCircle, ChevronRight
 } from 'lucide-react';
@@ -51,7 +51,7 @@ export function AuthView() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showConfirmPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function AuthView() {
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showNewPassword] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

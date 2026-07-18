@@ -189,7 +189,7 @@ export function LandingView() {
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button
                   size="lg"
-                  onClick={() => navigate('register')}
+                  onClick={() => navigate('auth', 'register')}
                   className="group relative overflow-hidden rounded-xl bg-primary px-8 text-primary-foreground font-semibold shadow-md transition-all hover:bg-primary/90 hover:shadow-lg active:scale-[0.98]"
                 >
                   <span className="relative flex items-center gap-2">
@@ -199,7 +199,7 @@ export function LandingView() {
                 <Button
                   size="lg"
                   variant="outline"
-                  onClick={() => navigate('login')}
+                  onClick={() => navigate('auth', 'login')}
                   className="rounded-xl border border-border bg-background px-8 shadow-sm hover:bg-muted font-semibold active:scale-[0.98]"
                 >
                   Sign In

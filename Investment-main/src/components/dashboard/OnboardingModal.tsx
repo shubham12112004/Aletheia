@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, BrainCircuit, LineChart, Sparkles, X, Activity, BookMarked } from 'lucide-react';
+import { ArrowRight, BrainCircuit, LineChart, Sparkles, X, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type Step = {

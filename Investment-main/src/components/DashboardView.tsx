@@ -3,12 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell, Clock3, Search, TrendingUp, TrendingDown,
   Sparkles, Plus, History, BookMarked, LogOut, Activity, PieChart, Wallet, 
-  ArrowUpRight, Briefcase, FileText, MessageCircle
+  ArrowUpRight, Briefcase, FileText, MessageCircle, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import { useResearchAgent } from '@/hooks/useResearchAgent';
 import { MACRO_SCENARIOS } from '@/lib/mockData';
 import type { FocusFilters, MacroScenario, ResearchResult } from '@/lib/types';
@@ -20,7 +19,7 @@ import { MarkdownReport } from '@/components/dashboard/MarkdownReport';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { cn } from '@/lib/utils';
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from '@/lib/api';
+import { getWatchlist, addToWatchlist } from '@/lib/api';
 import { DashboardChatbot } from './dashboard/DashboardChatbot';
 
 type NotificationItem = {

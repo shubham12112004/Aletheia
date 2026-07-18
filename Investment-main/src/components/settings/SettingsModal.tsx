@@ -1,4 +1,4 @@
-import { useState } from 'react';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Settings as SettingsIcon } from 'lucide-react';
 import { SettingsLayout } from './SettingsLayout';
