@@ -1,5 +1,6 @@
 import { AgentNetworkMap } from '@/components/AgentNetworkMap';
 import { ComparisonMatrix } from '@/components/ComparisonMatrix';
+import { LandingChatbot } from '@/components/LandingChatbot';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -37,7 +38,7 @@ const VALUE_PROPS = [
     icon: Network,
     title: 'Multi-Agent Workflows',
     description:
-      'Powered by LangGraph for resilient self-reflection. Specialist agents score fundamentals, moat, and sentiment in parallel â€” then a critic agent verifies every claim against primary sources.',
+      'Powered by LangGraph for resilient self-reflection. Specialist agents score fundamentals, moat, and sentiment in parallel — then a critic agent verifies every claim against primary sources.',
     points: ['Parallel specialist agents', 'Self-reflection guardrails', 'Verifiable citations'],
   },
   {
@@ -57,10 +58,10 @@ const VALUE_PROPS = [
 ];
 
 const FLOW_STEPS = [
-  { icon: FileInput, label: 'Input', detail: 'Company + macro regime' },
-  { icon: Search, label: 'Scrape', detail: 'Filings, news, pricing' },
-  { icon: ShieldCheck, label: 'Critique', detail: 'Critic + hallucination guard' },
-  { icon: FileOutput, label: 'Output', detail: 'INVEST / PASS verdict' },
+  { icon: FileInput, label: 'Input', detail: 'Asset ticker + macro regime' },
+  { icon: Search, label: 'Aggregate', detail: 'Filings, news, pricing data' },
+  { icon: ShieldCheck, label: 'Critique', detail: 'AI Critic + hallucination guard' },
+  { icon: FileOutput, label: 'Output', detail: 'Comprehensive Equity Report' },
 ];
 
 const LOGOS = ['BlackRock', 'Sequoia', 'Coatue', 'Bridgewater', 'Citadel', 'Two Sigma'];
@@ -180,10 +181,10 @@ export function LandingView() {
                 </span>
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-                A multi-agent VC evaluation engine that ingests filings, market data, and
-                sentiment â€” then critiques its own reasoning before returning a clear
-                INVEST or PASS call. Stress-test any thesis across macro regimes and
-                interrogate the agent on its verdict.
+                A multi-agent AI research workspace that ingests financial filings, real-time market data, and 
+                news sentiment — then critiques its own reasoning to deliver comprehensive equity analysis. 
+                Stress-test any investment thesis across various macroeconomic regimes and interrogate the agent 
+                to validate its insights.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button
@@ -363,12 +364,13 @@ export function LandingView() {
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
             <div className="flex items-center gap-2">
               <img src="/favicon.png" alt="Aletheia" className="h-4 w-4" style={{ aspectRatio: '1 / 1' }} />
-              <span>Aletheia â€” Research Workspace for Equity Analysis</span>
+              <span>Aletheia — Research Workspace for Equity Analysis</span>
             </div>
             <p>For research and educational use only. Not investment advice.</p>
           </div>
         </footer>
       </div>
+      <LandingChatbot />
     </div>
   );
 }
