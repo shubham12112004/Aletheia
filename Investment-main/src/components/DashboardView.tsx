@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, ChevronDown, Clock3, Database, 
+  Bell, ChevronDown, Clock3,
   PlayCircle, Search, Settings, TrendingUp, User,
   Sparkles, LayoutDashboard, History, BookMarked, Plus, Trash2, Info as InfoIcon,
   LogOut, Sun, Moon
@@ -389,12 +389,12 @@ export function DashboardView() {
           )}
           {activeTab === 'profile' && (
             <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SettingsLayout initialView="profile" />
+              <SettingsLayout />
             </motion.div>
           )}
           {activeTab === 'settings' && (
             <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <SettingsLayout initialView="settings" />
+              <SettingsLayout />
             </motion.div>
           )}
         </AnimatePresence>
