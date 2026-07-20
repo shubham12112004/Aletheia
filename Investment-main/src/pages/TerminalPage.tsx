@@ -20,9 +20,7 @@ import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 import { getWatchlist, addToWatchlist } from '@/lib/api';
 import { DashboardChatbot } from '@/components/dashboard/DashboardChatbot';
 
-type NotificationItem = {
-  id: string; title: string; desc: string; type: 'info' | 'success' | 'warn'; time: string;
-};
+
 type ResearchSnapshot = {
   id: string; company: string; ticker: string; createdAt: string;
   result: ResearchResult; rawMarkdown: string; timelineCount: number;
@@ -147,7 +145,7 @@ export function TerminalPage() {
   const handleAddToWatchlist = async (ticker: string, name: string) => {
     try {
       await addToWatchlist({ ticker, name }, token);
-      await syncWatchlist(true);
+      await syncWatchlist();
     } catch (err) {
       console.error(err);
     }
