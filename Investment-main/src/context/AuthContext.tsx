@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 type View = 'landing' | 'auth' | 'dashboard';
 type AuthMode = 'login' | 'register' | 'reset';
@@ -22,7 +23,6 @@ type User = {
 type AuthState = {
   token: string | null;
   user: User | null;
-  view: View;
   authMode: AuthMode;
   setSession: (session: { token: string; user: User }) => void;
   clearSession: () => Promise<void> | void;
@@ -38,25 +38,25 @@ const STORAGE_KEY = 'aletheia.auth';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  
+  const navigateRoute = useNavigate();
 
   const setSession = useCallback((session: { token: string; user: User }) => {
     setToken(session.token);
     setUser(session.user);
-    setView('dashboard');
-    // Sessions intentionally remain in memory: every new visit starts at landing and sign-in.
+    navigateRoute('/app/terminal');
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
       // ignore storage errors
     }
-  }, []);
+  }, [navigateRoute]);
 
   const clearSession = useCallback(async () => {
     setToken(null);
     setUser(null);
-    setView('landing');
+    navigateRoute('/');
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
@@ -64,9 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (supabase) await supabase.auth.signOut();
-  }, []);
+  }, [navigateRoute]);
 
-  // Never restore a prior workspace on a new visit. The intended flow is landing â†’ login â†’ dashboard.
   useEffect(() => {
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -77,14 +76,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const navigate = useCallback((nextView: View, nextAuthMode?: AuthMode) => {
-    if (nextView === 'dashboard' && !token) {
-      setView('auth');
-      if (nextAuthMode) setAuthMode(nextAuthMode);
-      return;
-    }
     if (nextAuthMode) setAuthMode(nextAuthMode);
-    setView(nextView);
-  }, [token]);
+    
+    if (nextView === 'dashboard') {
+      if (!token) {
+        navigateRoute('/auth');
+      } else {
+        navigateRoute('/app/terminal');
+      }
+    } else if (nextView === 'auth') {
+      navigateRoute('/auth');
+    } else if (nextView === 'landing') {
+      navigateRoute('/');
+    }
+  }, [token, navigateRoute]);
 
   const updateUser = useCallback((updates: Partial<Pick<User, 'name' | 'email'>>) => {
     setUser((current) => current ? { ...current, ...updates } : current);
@@ -95,8 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearSession]);
 
   const value = useMemo(
-    () => ({ token, user, view, authMode, setSession, clearSession, logout, navigate, setAuthMode, updateUser }),
-    [token, user, view, authMode, setSession, clearSession, logout, navigate, updateUser]
+    () => ({ token, user, authMode, setSession, clearSession, logout, navigate, setAuthMode, updateUser }),
+    [token, user, authMode, setSession, clearSession, logout, navigate, updateUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  Bell, Clock3, Search, TrendingUp, TrendingDown,
-  Sparkles, Plus, History, BookMarked, LogOut, Activity, PieChart, Wallet, 
-  ArrowUpRight, Briefcase, FileText, MessageCircle, Settings
+  Clock3, Search, TrendingUp, TrendingDown,
+  Sparkles, Plus, History, BookMarked, Activity, PieChart, Wallet, 
+  ArrowUpRight, Briefcase, FileText, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,8 @@ import { RecommendationBadge } from '@/components/dashboard/RecommendationBadge'
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import { MarkdownReport } from '@/components/dashboard/MarkdownReport';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
-import { SettingsModal } from '@/components/settings/SettingsModal';
-import { cn } from '@/lib/utils';
 import { getWatchlist, addToWatchlist } from '@/lib/api';
-import { DashboardChatbot } from './dashboard/DashboardChatbot';
+import { DashboardChatbot } from '@/components/dashboard/DashboardChatbot';
 
 type NotificationItem = {
   id: string; title: string; desc: string; type: 'info' | 'success' | 'warn'; time: string;
@@ -84,42 +82,30 @@ function buildLiveSnapshot(data: any): ResearchSnapshot {
   };
 }
 
-export function DashboardView() {
-  const { user, token, logout } = useAuth();
+export function TerminalPage() {
+  const { user, token } = useAuth();
   const { status, phase, steps, result, rawMarkdown, progress, messages, timeline, profile, quote, financials, news, run, reset, ask, clearChat, error } = useResearchAgent();
   
   const [company, setCompany] = useState('');
   const [scenario] = useState<MacroScenario>(MACRO_SCENARIOS[2]);
   const [focus] = useState<FocusFilters>({ regulatory: true, insider: false });
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [history, setHistory] = useState<ResearchSnapshot[]>([]);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [watchlistItems, setWatchlistItems] = useState<Array<{ ticker: string; name: string }>>([]);
 
-  const addNotification = (title: string, desc: string, type: 'info' | 'success' | 'warn' = 'info') => {
-    const item: NotificationItem = { id: Math.random().toString(), title, desc, type, time: new Date().toLocaleTimeString() };
-    setNotifications((prev) => [item, ...prev].slice(0, 20));
-  };
-
-  const syncWatchlist = async (silent = false) => {
+  const syncWatchlist = async () => {
     try {
       const items = await getWatchlist(token);
       setWatchlistItems(items);
-      if (!silent) addNotification('Watchlist Synced', 'Your watchlist has been updated.', 'success');
     } catch (err) {
-      if (!silent) addNotification('Sync Failed', 'Could not sync watchlist.', 'warn');
+      console.error(err);
     }
   };
 
   useEffect(() => {
-    document.documentElement.classList.add('dark'); // Force dark mode for premium feel
     if (token && user) {
-      syncWatchlist(true);
-      addNotification('Terminal Online', `Logged in as ${user.email}`, 'info');
+      syncWatchlist();
     }
   }, [token]); // eslint-disable-line
 
@@ -130,14 +116,13 @@ export function DashboardView() {
   const hasResult = status === 'complete' && Boolean(result);
   const activeDataset = (history.find((item) => item.id === selectedSnapshotId)) || (result ? buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news }) : null);
 
-  useEffect(() => { if (running) addNotification('Research Initiated', `Querying agent swarm for ${company.toUpperCase()}`, 'info'); }, [running]); // eslint-disable-line
+  useEffect(() => { if (running) console.log('Research Initiated', `Querying agent swarm for ${company.toUpperCase()}`); }, [running]); // eslint-disable-line
 
   useEffect(() => {
     if (!hasResult || !result) return;
     const snapshot = buildLiveSnapshot({ result, rawMarkdown, timeline, profile, quote, financials, news });
     setHistory((current) => [snapshot, ...current.filter((item) => item.ticker !== snapshot.ticker || item.rawMarkdown !== snapshot.rawMarkdown)].slice(0, 20));
     setSelectedSnapshotId(null);
-    addNotification('Analysis Complete', `Agent generated verdict: ${result.verdict}`, 'success');
   }, [hasResult, result, rawMarkdown, timeline, profile, quote, financials, news]); // eslint-disable-line
 
   useEffect(() => {
@@ -163,112 +148,16 @@ export function DashboardView() {
     try {
       await addToWatchlist({ ticker, name }, token);
       await syncWatchlist(true);
-      addNotification('Watchlist Updated', `Added ${ticker.toUpperCase()}`, 'success');
     } catch (err) {
-      addNotification('Watchlist Error', err instanceof Error ? err.message : 'Failed to add', 'warn');
+      console.error(err);
     }
   };
 
 
 
-  const initials = (user?.name || 'AI').split(' ').map((item) => item[0]).slice(0, 2).join('').toUpperCase();
-
   return (
-    <div className="min-h-screen bg-[#09090b] text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
-      
-      {/* Background Gradients */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/5 blur-[120px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/5 blur-[120px]" />
-      </div>
-
-      {/* SECTION 1: TOP NAVIGATION */}
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full px-4 sm:px-6 lg:px-8 items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={handleNewResearch}>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold shadow-md">
-                A
-              </div>
-              <span className="font-bold tracking-tight text-lg hidden sm:block text-zinc-100">Aletheia</span>
-            </div>
-            <div className="hidden lg:flex items-center gap-6 ml-6 text-sm font-medium text-zinc-400">
-              <span className="text-zinc-100 cursor-pointer transition-colors">Terminal</span>
-              <span className="hover:text-zinc-100 cursor-pointer transition-colors">Markets</span>
-              <span className="hover:text-zinc-100 cursor-pointer transition-colors">Screener</span>
-              <span className="hover:text-zinc-100 cursor-pointer transition-colors">Portfolios</span>
-            </div>
-          </div>
-          
-          <div className="flex-1 flex justify-center max-w-xl mx-4">
-            <div className="relative w-full max-w-md group hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
-              <Input
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search symbol, company, or sector..."
-                className="w-full bg-zinc-900/50 border-border/50 pl-10 pr-4 h-9 rounded-full focus-visible:ring-1 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500/50 transition-all placeholder:text-zinc-600 text-sm shadow-sm"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(!isChatOpen)} className={cn("h-8 w-8 rounded-full", isChatOpen && "bg-emerald-500/10 text-emerald-500")}>
-              <Sparkles className="h-4 w-4" />
-            </Button>
-            <div className="relative">
-              <Button variant="ghost" size="icon" onClick={() => setNotificationsOpen(!notificationsOpen)} className="h-8 w-8 rounded-full">
-                <Bell className="h-4 w-4" />
-                {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
-              </Button>
-              <AnimatePresence>
-                {notificationsOpen && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-border/50 bg-[#09090b]/95 backdrop-blur-xl p-2 shadow-2xl z-50">
-                    <div className="p-2 pb-3 mb-2 border-b border-border/50"><h3 className="text-sm font-bold text-zinc-100">Terminal Events</h3></div>
-                    <div className="max-h-[300px] overflow-y-auto space-y-1">
-                      {notifications.length === 0 ? <p className="p-4 text-center text-xs text-zinc-500">No events</p> : notifications.map((n) => (
-                        <div key={n.id} className="rounded-xl p-3 hover:bg-zinc-800/50 transition">
-                          <div className="flex justify-between items-start"><p className="text-sm font-semibold text-zinc-200">{n.title}</p><span className="text-[10px] text-zinc-500">{n.time}</span></div>
-                          <p className="text-xs text-zinc-400 mt-1">{n.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <div className="relative ml-1">
-              <button onClick={() => setProfileMenuOpen(!profileMenuOpen)} className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-xs font-bold text-white shadow-md ring-1 ring-border/50 hover:ring-zinc-500 transition-all">
-                {initials}
-              </button>
-              <AnimatePresence>
-                {profileMenuOpen && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/50 bg-[#09090b]/95 backdrop-blur-xl p-2 shadow-2xl z-50">
-                    <div className="px-3 py-3 border-b border-border/50 mb-2">
-                      <p className="text-sm font-bold text-zinc-100 truncate">{user?.name || 'Analyst'}</p>
-                      <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
-                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500 uppercase tracking-wider">
-                        <Activity className="h-3 w-3" /> Active Workspace
-                      </div>
-                    </div>
-                    <div className="space-y-1 mb-2">
-                      <button onClick={() => { setIsSettingsOpen(true); setProfileMenuOpen(false); }} className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition">
-                        <Settings className="h-4 w-4 text-zinc-400" /> Settings & Preferences
-                      </button>
-                    </div>
-                    <button onClick={logout} className="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-500/10 transition">
-                      <LogOut className="h-4 w-4" /> Sign Out
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6 relative z-10">
+    <>
+      <div className="flex-1 w-full max-w-[1600px] mx-auto flex flex-col gap-6 relative z-10">
         
         {/* SECTION 2: PREMIUM METRIC CARDS */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -374,11 +263,13 @@ export function DashboardView() {
                 </DashboardCard>
                 
                 {/* Markdown Report Render */}
-                <DashboardCard className="p-6 lg:p-8 border-border/40 shadow-md">
-                  <h3 className="text-xl font-black mb-6 flex items-center gap-2 border-b border-border/40 pb-4 text-zinc-100">
+                <DashboardCard className="p-6 lg:p-8 border-border/40 shadow-md flex flex-col max-h-[800px]">
+                  <h3 className="text-xl font-black mb-6 flex items-center gap-2 border-b border-border/40 pb-4 text-zinc-100 shrink-0">
                     <FileText className="h-6 w-6 text-emerald-500" /> AI Evaluation Report
                   </h3>
-                  <MarkdownReport markdown={activeDataset.rawMarkdown} />
+                  <div className="overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                    <MarkdownReport markdown={activeDataset.rawMarkdown} />
+                  </div>
                   
                   {/* Smart Follow-ups */}
                   {activeDataset.result.suggestedQuestions && activeDataset.result.suggestedQuestions.length > 0 && (
@@ -579,22 +470,16 @@ export function DashboardView() {
             </motion.div>
           )}
         </div>
-      </main>
+      </div>
 
-      {/* Global Chatbot */}
       <DashboardChatbot 
         isOpen={isChatOpen} 
         onClose={() => setIsChatOpen(false)} 
         messages={messages} 
-        onAsk={(text) => ask(text, scenario)}
+        onAsk={(text: string) => ask(text, scenario)}
         onClear={clearChat}
       />
-      
-      {/* First-Time Onboarding Modal */}
       <OnboardingModal />
-      
-      {/* Settings Modal */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-    </div>
+    </>
   );
 }

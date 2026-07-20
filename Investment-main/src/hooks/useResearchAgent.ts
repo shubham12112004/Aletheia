@@ -355,7 +355,7 @@ export function useResearchAgent() {
         { 
           id: msgIdRef.current++, 
           role: 'agent', 
-          text: "Communication timeout error checking context strings.", 
+          text: err instanceof Error ? err.message : "Communication error checking context strings.", 
           timestamp: nowStamp() 
         },
       ]);

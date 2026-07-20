@@ -42,8 +42,8 @@ export function LandingChatbot() {
 
     try {
       // Direct API call to backend route
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      const response = await fetch(`${baseUrl}/landing-chat`, {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/landing-chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
