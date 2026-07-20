@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="8" fill="url(#grad)" />
+  <path d="M16 7C11.5817 7 8 10.5817 8 15C8 17.5143 9.15933 19.756 11 21.1965V25C11 25.5523 11.4477 26 12 26H20C20.5523 26 21 25.5523 21 25V21.1965C22.8407 19.756 24 17.5143 24 15C24 10.5817 20.4183 7 16 7ZM16 9C19.3137 9 22 11.6863 22 15C22 17.0673 20.9547 18.8953 19.3789 20H12.6211C11.0453 18.8953 10 17.0673 10 15C10 11.6863 12.6863 9 16 9Z" fill="white" />
+  <path d="M14 20V24H18V20H14Z" fill="white" />
+  <circle cx="16" cy="14" r="3" fill="white" />
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10b981" />
+      <stop offset="1" stop-color="#0f766e" />
+    </linearGradient>
+  </defs>
+</svg>

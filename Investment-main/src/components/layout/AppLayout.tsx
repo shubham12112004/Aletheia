@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, History, BookMarked, LogOut, Activity, Settings, Home, LayoutGrid, LineChart, Briefcase as BriefcaseIcon
+  Bell, History, BookMarked, LogOut, Activity, Settings, Home, LayoutGrid, LineChart, Briefcase as BriefcaseIcon, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -66,7 +66,7 @@ export function AppLayout() {
           <div className="flex items-center gap-4">
             <Link to="/app/terminal" className="flex items-center gap-2 cursor-pointer">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold shadow-md">
-                A
+                <Brain className="h-5 w-5" />
               </div>
               <span className="font-bold tracking-tight text-lg hidden sm:block text-zinc-100">Aletheia</span>
             </Link>

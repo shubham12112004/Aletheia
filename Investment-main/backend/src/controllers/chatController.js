@@ -29,7 +29,7 @@ CRITICAL INSTRUCTIONS:
 3. Keep answers concise, insightful, and easy to read.`;
 
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-pro-latest", // using pro for dashboard as it handles context better
+            model: "gemini-1.5-pro", // using pro for dashboard as it handles context better
             systemInstruction: systemPrompt 
         });
 

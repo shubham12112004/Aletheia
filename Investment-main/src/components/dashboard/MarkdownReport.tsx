@@ -8,7 +8,7 @@ export function MarkdownReport({
   markdown: string;
 }) {
   return (
-    <article className="prose prose-invert max-w-none">
+    <article className="prose prose-invert max-w-none md:columns-2 md:gap-8 [&>h2]:break-after-avoid [&>h3]:break-after-avoid [&>p]:break-inside-avoid [&>div]:break-inside-avoid">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]} // Binds the GFM plugin to parse tables correctly
         components={{
