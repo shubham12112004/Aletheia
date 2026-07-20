@@ -8,6 +8,7 @@ const researchRoutes = require("./researchRoutes");
 const watchlistRoutes = require("./watchlistRoutes");
 const settingsRoutes = require("./settingsRoutes");
 const landingChatRoutes = require("./landingChatRoutes");
+const marketRoutes = require("./marketRoutes");
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use("/research", researchRoutes);
 router.use("/watchlist", watchlistRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/landing-chat", landingChatRoutes);
+router.use("/markets", marketRoutes);
 
 module.exports = router;

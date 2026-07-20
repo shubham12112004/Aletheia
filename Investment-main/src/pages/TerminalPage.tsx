@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Clock3, Search, TrendingUp, TrendingDown,
   Sparkles, Plus, History, BookMarked, Activity, PieChart, Wallet, 
-  ArrowUpRight, Briefcase, FileText, MessageCircle
+  ArrowUpRight, ArrowDownRight, FileText, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,7 +17,7 @@ import { RecommendationBadge } from '@/components/dashboard/RecommendationBadge'
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
 import { MarkdownReport } from '@/components/dashboard/MarkdownReport';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
-import { getWatchlist, addToWatchlist } from '@/lib/api';
+import { getWatchlist, addToWatchlist, getPortfolio } from '@/lib/api';
 import { DashboardChatbot } from '@/components/dashboard/DashboardChatbot';
 
 
@@ -28,33 +28,6 @@ type ResearchSnapshot = {
 };
 
 const STORAGE_KEY = 'aletheia.researchHistory';
-
-// Mock Data for Premium Layout
-const MOCK_PORTFOLIO = {
-  value: 124592.45,
-  dailyChange: 1240.50,
-  dailyPercent: 1.01,
-  sentiment: 'Bullish',
-  status: 'Open - NASDAQ',
-  allocations: [
-    { label: 'Technology', val: 45, color: 'bg-blue-500' },
-    { label: 'Healthcare', val: 25, color: 'bg-emerald-500' },
-    { label: 'Finance', val: 20, color: 'bg-purple-500' },
-    { label: 'Energy', val: 10, color: 'bg-amber-500' }
-  ],
-  transactions: [
-    { id: 1, type: 'BUY', ticker: 'NVDA', shares: 15, price: 120.45, date: 'Today, 09:30 AM' },
-    { id: 2, type: 'SELL', ticker: 'TSLA', shares: 50, price: 175.20, date: 'Yesterday, 14:15 PM' },
-    { id: 3, type: 'BUY', ticker: 'MSFT', shares: 25, price: 415.80, date: 'Oct 24, 11:05 AM' }
-  ]
-};
-
-const MOCK_TRENDING = [
-  { ticker: 'NVDA', price: 125.40, change: '+4.2%' },
-  { ticker: 'TSLA', price: 178.20, change: '-1.5%' },
-  { ticker: 'PLTR', price: 24.50, change: '+8.4%' },
-  { ticker: 'SMCI', price: 890.10, change: '-4.2%' },
-];
 
 const RECOMMENDATIONS = [
   { ticker: 'AAPL', name: 'Apple Inc.' },
@@ -91,6 +64,7 @@ export function TerminalPage() {
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [watchlistItems, setWatchlistItems] = useState<Array<{ ticker: string; name: string }>>([]);
+  const [portfolioData, setPortfolioData] = useState<any>({ totalValue: 0, totalDailyChange: 0, totalDailyChangePercent: 0 });
 
   const syncWatchlist = async () => {
     try {
@@ -104,6 +78,7 @@ export function TerminalPage() {
   useEffect(() => {
     if (token && user) {
       syncWatchlist();
+      getPortfolio(token).then(setPortfolioData).catch(console.error);
     }
   }, [token]); // eslint-disable-line
 
@@ -162,10 +137,10 @@ export function TerminalPage() {
           <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
             <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">Portfolio Value</span><Wallet className="h-4 w-4" /></div>
             <div>
-              <div className="text-2xl font-black text-zinc-100">${MOCK_PORTFOLIO.value.toLocaleString()}</div>
-              <div className="flex items-center gap-1 text-xs mt-1 text-emerald-500 font-bold">
-                <ArrowUpRight className="h-3 w-3 stroke-[3]" />
-                <span>+${MOCK_PORTFOLIO.dailyChange.toLocaleString()} ({MOCK_PORTFOLIO.dailyPercent}%)</span>
+              <div className="text-2xl font-black text-zinc-100">${(portfolioData.totalValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className={`flex items-center gap-1 text-xs mt-1 font-bold ${portfolioData.totalDailyChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {portfolioData.totalDailyChange >= 0 ? <ArrowUpRight className="h-3 w-3 stroke-[3]" /> : <ArrowDownRight className="h-3 w-3 stroke-[3]" />}
+                <span>{portfolioData.totalDailyChange >= 0 ? '+' : ''}${(portfolioData.totalDailyChange || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(portfolioData.totalDailyChangePercent || 0).toFixed(2)}%)</span>
               </div>
             </div>
           </DashboardCard>
@@ -173,8 +148,8 @@ export function TerminalPage() {
           <DashboardCard className="p-5 flex flex-col justify-between bg-zinc-900/40 hover:bg-zinc-900/60 transition-colors border-border/40 shadow-sm">
             <div className="flex items-center justify-between text-zinc-400 mb-4"><span className="text-xs font-bold uppercase tracking-wider">Market Sentiment</span><Activity className="h-4 w-4" /></div>
             <div>
-              <div className="text-2xl font-black text-emerald-500">{MOCK_PORTFOLIO.sentiment}</div>
-              <div className="text-xs mt-1 text-zinc-500 font-semibold">Based on 142 AI signals</div>
+              <div className="text-2xl font-black text-emerald-500">{watchlistItems.length > 0 ? (portfolioData.totalDailyChange >= 0 ? 'Bullish' : 'Bearish') : '--'}</div>
+              <div className="text-xs mt-1 text-zinc-500 font-semibold">Based on watchlist trend</div>
             </div>
           </DashboardCard>
           
@@ -381,19 +356,21 @@ export function TerminalPage() {
                 </DashboardCard>
 
                 {/* Trending Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {MOCK_TRENDING.map(t => (
-                    <DashboardCard key={t.ticker} className="p-5 bg-zinc-900/40 hover:bg-zinc-800/60 border-border/40 transition-colors cursor-pointer group shadow-sm" onClick={() => handleSearch(t.ticker)}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="font-black text-xl text-zinc-200 group-hover:text-emerald-400 transition-colors">{t.ticker}</div>
-                        <div className={`text-xs font-black px-2 py-1 rounded-md ${t.change.startsWith('+') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                          {t.change}
+                {portfolioData.assets && portfolioData.assets.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {portfolioData.assets.slice(0, 4).map((t: any) => (
+                      <DashboardCard key={t.ticker} className="p-5 bg-zinc-900/40 hover:bg-zinc-800/60 border-border/40 transition-colors cursor-pointer group shadow-sm" onClick={() => handleSearch(t.ticker)}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="font-black text-xl text-zinc-200 group-hover:text-emerald-400 transition-colors">{t.ticker}</div>
+                          <div className={`text-xs font-black px-2 py-1 rounded-md ${t.dailyChangePercent >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {t.dailyChangePercent >= 0 ? '+' : ''}{t.dailyChangePercent.toFixed(2)}%
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-base font-bold text-zinc-400">${t.price.toFixed(2)}</div>
-                    </DashboardCard>
-                  ))}
-                </div>
+                        <div className="text-base font-bold text-zinc-400">${t.price.toFixed(2)}</div>
+                      </DashboardCard>
+                    ))}
+                  </div>
+                )}
 
                 {/* Recent Research History Grid */}
                 {history.length > 0 && (
@@ -420,47 +397,33 @@ export function TerminalPage() {
                 )}
               </div>
 
-              {/* Right Panel: Mock Portfolio Details */}
+              {/* Right Panel: Live Portfolio Details */}
               <div className="space-y-6">
                 <DashboardCard className="p-6 border-border/40 shadow-sm bg-zinc-900/20">
                   <h3 className="font-black mb-5 text-zinc-100 border-b border-border/40 pb-3 flex items-center gap-2">
                     <PieChart className="h-5 w-5 text-emerald-500" /> Portfolio Allocation
                   </h3>
                   <div className="space-y-4">
-                    {MOCK_PORTFOLIO.allocations.map(a => (
-                      <div key={a.label}>
-                        <div className="flex justify-between text-sm mb-1.5 font-bold">
-                          <span className="text-zinc-300">{a.label}</span>
-                          <span className="text-zinc-500">{a.val}%</span>
-                        </div>
-                        <div className="h-2.5 w-full bg-[#09090b] rounded-full overflow-hidden shadow-inner border border-border/30">
-                          <div className={`h-full ${a.color} rounded-full`} style={{ width: `${a.val}%` }}></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </DashboardCard>
-
-                <DashboardCard className="p-6 border-border/40 shadow-sm bg-zinc-900/20">
-                  <h3 className="font-black mb-5 text-zinc-100 border-b border-border/40 pb-3 flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-emerald-500" /> Recent Transactions
-                  </h3>
-                  <div className="space-y-3">
-                    {MOCK_PORTFOLIO.transactions.map(tx => (
-                      <div key={tx.id} className="flex justify-between items-center p-3.5 rounded-xl border border-border/40 bg-[#09090b] hover:bg-zinc-800/40 transition">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${tx.type === 'BUY' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'}`}>{tx.type}</span>
-                            <span className="font-black text-zinc-200">{tx.ticker}</span>
+                    {portfolioData.assets && portfolioData.assets.length > 0 ? (
+                      portfolioData.assets.map((a: any, i: number) => {
+                        const val = ((a.value / portfolioData.totalValue) * 100).toFixed(1);
+                        const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500'];
+                        const color = colors[i % colors.length];
+                        return (
+                          <div key={a.ticker}>
+                            <div className="flex justify-between text-sm mb-1.5 font-bold">
+                              <span className="text-zinc-300">{a.ticker}</span>
+                              <span className="text-zinc-500">{val}%</span>
+                            </div>
+                            <div className="h-2.5 w-full bg-[#09090b] rounded-full overflow-hidden shadow-inner border border-border/30">
+                              <div className={`h-full ${color} rounded-full`} style={{ width: `${val}%` }}></div>
+                            </div>
                           </div>
-                          <div className="text-xs text-zinc-500 font-medium">{tx.date}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-black text-sm text-zinc-200">${tx.price.toFixed(2)}</div>
-                          <div className="text-xs text-zinc-500 font-medium">{tx.shares} shares</div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })
+                    ) : (
+                      <div className="text-zinc-500 text-sm text-center py-4">No assets to display</div>
+                    )}
                   </div>
                 </DashboardCard>
               </div>

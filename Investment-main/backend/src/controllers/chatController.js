@@ -43,6 +43,15 @@ CRITICAL INSTRUCTIONS:
 
     } catch (err) {
         console.error("Chat Controller Error:", err);
+        
+        // Handle Gemini 403 Forbidden (Invalid API Key)
+        if (err.message && err.message.includes("403 Forbidden")) {
+            return res.status(200).json({
+                success: true,
+                answer: "I am unable to process your request because my AI language model is currently disconnected. The `GEMINI_API_KEY` configured in the backend environment is either invalid or expired. Please contact the administrator to update the API key in the deployment settings."
+            });
+        }
+
         return res.status(500).json({
             success: false,
             message: err.message || "Failed to process chat query.",

@@ -249,4 +249,49 @@ export async function postChatQuery(payload: unknown) {
   return data;
 }
 
+/**
+ * Retrieves market overview data (e.g. SPY, QQQ, DIA indices).
+ * @param {string | null} token - The JWT token.
+ * @returns {Promise<any>}
+ */
+export async function getMarketOverview(token: string | null) {
+  const response = await fetch(`${API_URL}/api/markets/overview`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+  const data = await response.json();
+  if (!response.ok || data.success === false) throw new Error(data.message ?? 'Failed to fetch market overview.');
+  return data.data;
+}
+
+/**
+ * Retrieves stock screener data.
+ * @param {string | null} token - The JWT token.
+ * @returns {Promise<any>}
+ */
+export async function getScreenerData(token: string | null) {
+  const response = await fetch(`${API_URL}/api/markets/screener`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+  const data = await response.json();
+  if (!response.ok || data.success === false) throw new Error(data.message ?? 'Failed to fetch screener data.');
+  return data.data;
+}
+
+/**
+ * Retrieves the user's simulated portfolio based on their watchlist.
+ * @param {string | null} token - The JWT token.
+ * @returns {Promise<any>}
+ */
+export async function getPortfolio(token: string | null) {
+  const response = await fetch(`${API_URL}/api/markets/portfolio`, {
+    method: 'GET',
+    headers: authHeaders(token),
+  });
+  const data = await response.json();
+  if (!response.ok || data.success === false) throw new Error(data.message ?? 'Failed to fetch portfolio.');
+  return data.data;
+}
+
 export { API_URL };
