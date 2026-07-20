@@ -356,21 +356,27 @@ export function TerminalPage() {
                 </DashboardCard>
 
                 {/* Trending Grid */}
-                {portfolioData.assets && portfolioData.assets.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {portfolioData.assets.slice(0, 4).map((t: any) => (
-                      <DashboardCard key={t.ticker} className="p-5 bg-zinc-900/40 hover:bg-zinc-800/60 border-border/40 transition-colors cursor-pointer group shadow-sm" onClick={() => handleSearch(t.ticker)}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {(portfolioData.assets && portfolioData.assets.length > 0 ? portfolioData.assets : RECOMMENDATIONS).slice(0, 4).map((t: any) => {
+                    // Normalize data structure for fallback items
+                    const ticker = t.ticker;
+                    const changePercent = typeof t.dailyChangePercent === 'number' ? t.dailyChangePercent : (Math.random() * 5); // Simulated fallback change
+                    const isPositive = changePercent >= 0;
+                    const price = typeof t.price === 'number' ? t.price : (Math.random() * 200 + 50);
+
+                    return (
+                      <DashboardCard key={ticker} className="p-5 bg-zinc-900/40 hover:bg-zinc-800/60 border-border/40 transition-colors cursor-pointer group shadow-sm" onClick={() => handleSearch(ticker)}>
                         <div className="flex justify-between items-start mb-3">
-                          <div className="font-black text-xl text-zinc-200 group-hover:text-emerald-400 transition-colors">{t.ticker}</div>
-                          <div className={`text-xs font-black px-2 py-1 rounded-md ${t.dailyChangePercent >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                            {t.dailyChangePercent >= 0 ? '+' : ''}{t.dailyChangePercent.toFixed(2)}%
+                          <div className="font-black text-xl text-zinc-200 group-hover:text-emerald-400 transition-colors">{ticker}</div>
+                          <div className={`text-xs font-black px-2 py-1 rounded-md ${isPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                            {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
                           </div>
                         </div>
-                        <div className="text-base font-bold text-zinc-400">${t.price.toFixed(2)}</div>
+                        <div className="text-base font-bold text-zinc-400">${price.toFixed(2)}</div>
                       </DashboardCard>
-                    ))}
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
 
                 {/* Recent Research History Grid */}
                 {history.length > 0 && (
@@ -422,7 +428,11 @@ export function TerminalPage() {
                         );
                       })
                     ) : (
-                      <div className="text-zinc-500 text-sm text-center py-4">No assets to display</div>
+                      <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <BookMarked className="h-8 w-8 text-zinc-600 mb-3" />
+                        <div className="text-zinc-400 font-semibold mb-1">Your Watchlist is Empty</div>
+                        <div className="text-xs text-zinc-500 max-w-[200px]">Add assets to your watchlist to see your simulated portfolio allocation here.</div>
+                      </div>
                     )}
                   </div>
                 </DashboardCard>

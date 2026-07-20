@@ -10,14 +10,14 @@ const addWatchlistSchema = z.object({
 });
 
 const getWatchlist = asyncHandler(async (req, res) => {
-  const userId = req.user.sub;
+  const userId = req.user._id;
   const items = await Watchlist.find({ userId }).sort({ createdAt: -1 }).lean();
   return success(res, items, 'Watchlist fetched successfully');
 });
 
 const addToWatchlist = asyncHandler(async (req, res) => {
   const { ticker, name } = addWatchlistSchema.parse(req.body);
-  const userId = req.user.sub;
+  const userId = req.user._id;
 
   const existing = await Watchlist.findOne({ userId, ticker });
   if (existing) {
@@ -35,7 +35,7 @@ const addToWatchlist = asyncHandler(async (req, res) => {
 
 const removeFromWatchlist = asyncHandler(async (req, res) => {
   const { ticker } = req.params;
-  const userId = req.user.sub;
+  const userId = req.user._id;
 
   const deleted = await Watchlist.findOneAndDelete({ userId, ticker: ticker.toUpperCase() });
   if (!deleted) {

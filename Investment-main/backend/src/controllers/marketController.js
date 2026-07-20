@@ -61,7 +61,7 @@ exports.getScreener = asyncHandler(async (req, res) => {
 });
 
 exports.getPortfolio = asyncHandler(async (req, res) => {
-    const userId = req.user.sub;
+    const userId = req.user._id;
     const watchlist = await Watchlist.find({ userId });
     
     // Simulate a portfolio based on watchlist items

@@ -547,7 +547,7 @@ exports.generateGroqReport = async ({ profile, quote, financials, news, web }) =
   "company":"",
   "ticker":"",
   "verdict":"BUY" | "HOLD" | "SELL",
-  "confidence":0,
+  "confidence": <integer from 1 to 100>,
   "executiveSummary":[""],
   "pros":[{"text":"reason","weight":"high" | "medium" | "low"}],
   "cons":[{"text":"reason","weight":"high" | "medium" | "low"}],
@@ -556,9 +556,9 @@ exports.generateGroqReport = async ({ profile, quote, financials, news, web }) =
   "report":"markdown report"
 }
 
-REPORT REQUIREMENTS (The 'report' string must strictly use these exact Markdown headers):
+REPORT REQUIREMENTS (Keep the 'report' concise, max 300 words total! Must use these exact Markdown headers):
 # Executive Summary
-(A concise overview)
+(2-3 sentences)
 
 ## Investment Recommendation
 (Buy/Hold/Sell)
@@ -576,17 +576,17 @@ REPORT REQUIREMENTS (The 'report' string must strictly use these exact Markdown 
 (Present data cleanly in bullet points or markdown tables)
 
 ## AI Confidence Score
-[Score]% Confidence
-(Explain why)
+[Integer Score]% Confidence
+(1 sentence)
 
 ## Bull Case
-(Why this investment could perform well)
+(1-2 sentences)
 
 ## Bear Case
-(Potential downside)
+(1-2 sentences)
 
 ## Final Conclusion
-(Short actionable summary)
+(1 sentence actionable summary)
 
 DATA:
 ${JSON.stringify(context)}`;
