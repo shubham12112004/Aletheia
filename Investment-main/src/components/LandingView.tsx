@@ -32,6 +32,8 @@ declare global {
       ready?: (callback: () => void) => void;
       render: (container: HTMLElement | string, options: any) => string;
       remove: (widgetId?: string) => void;
+      reset: (widgetId?: string) => void;
+      getResponse: (widgetId?: string) => string | undefined;
     };
   }
 }
@@ -367,16 +369,34 @@ export function LandingView() {
         {/* WORKFLOW PIPELINE */}
         <section id="how-it-works" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="mb-14 text-center">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-400">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              viewport={{ once: true }}
+              className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-400"
+            >
               <Activity className="h-3.5 w-3.5" />
               LangGraph Execution Loop
-            </div>
-            <h2 className="text-balance text-3xl font-black tracking-tight text-white sm:text-4xl">
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              viewport={{ once: true }}
+              className="text-balance text-3xl font-black tracking-tight text-white sm:text-4xl"
+            >
               How the Research Swarm Operates
-            </h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-zinc-400 font-medium">
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="mx-auto mt-2 max-w-xl text-sm text-zinc-400 font-medium"
+            >
               A four-stage autonomous pipeline converts raw tickers into institutional research reports.
-            </p>
+            </motion.p>
           </div>
 
           <div className="relative">
@@ -384,18 +404,36 @@ export function LandingView() {
               {FLOW_STEPS.map((s, i) => {
                 const Icon = s.icon;
                 return (
-                  <div key={s.label} className="relative group">
-                    <div className="flex flex-col items-center text-center p-6 rounded-2xl border border-white/10 bg-[#090d16]/80 backdrop-blur-xl hover:border-emerald-500/30 transition-all">
-                      <div className="relative mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-lg">
-                        <Icon className="h-6 w-6 stroke-[1.75]" />
+                  <motion.div
+                    key={s.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: i * 0.1 }}
+                    viewport={{ once: true }}
+                    className="relative group"
+                  >
+                    <div className="flex flex-col items-center text-center p-6 rounded-2xl border border-white/10 bg-[#090d16]/80 backdrop-blur-xl hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 hover:-translate-y-1">
+                      <div className="relative mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-lg group-hover:shadow-emerald-500/20 transition-all">
+                        <Icon className="h-6 w-6 stroke-[1.75] group-hover:scale-110 transition-transform" />
                         <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white shadow-md">
                           {i + 1}
                         </span>
                       </div>
-                      <h4 className="text-base font-black text-white mb-1">{s.label}</h4>
-                      <p className="text-xs text-zinc-400 font-medium">{s.detail}</p>
+                      <h4 className="text-base font-black text-white mb-1 group-hover:text-emerald-400 transition-colors">{s.label}</h4>
+                      <p className="text-xs text-zinc-400 font-medium group-hover:text-zinc-300 transition-colors">{s.detail}</p>
                     </div>
-                  </div>
+                    {i < FLOW_STEPS.length - 1 && (
+                      <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
+                        <motion.div
+                          animate={{ x: [0, 4, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="text-emerald-500/40 font-bold text-lg"
+                        >
+                          →
+                        </motion.div>
+                      </div>
+                    )}
+                  </motion.div>
                 );
               })}
             </div>
@@ -414,30 +452,54 @@ export function LandingView() {
         </section>
 
         {/* TESTIMONIALS SECTION */}
-        <section id="testimonials" className="border-t border-white/5 bg-[#090d16]/60 py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section id="testimonials" className="border-t border-white/5 bg-gradient-to-b from-[#090d16]/60 to-[#05080f]/80 py-20 relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -left-[10%] -top-[5%] h-[500px] w-[500px] rounded-full bg-emerald-500/5 blur-[120px] mix-blend-screen" />
+            <div className="absolute -right-[10%] -bottom-[5%] h-[500px] w-[500px] rounded-full bg-teal-600/5 blur-[120px] mix-blend-screen" />
+          </div>
+          
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="mb-14 text-center">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-400">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+                viewport={{ once: true }}
+                className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1 text-xs font-bold text-emerald-400"
+              >
                 <Star className="h-3.5 w-3.5 fill-current text-emerald-400" /> Institutional Trust
-              </div>
-              <h2 className="text-balance text-3xl font-black tracking-tight text-white sm:text-4xl">
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                viewport={{ once: true }}
+                className="text-balance text-3xl font-black tracking-tight text-white sm:text-4xl"
+              >
                 Validated by Quantitative Research Desks
-              </h2>
+              </motion.h2>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
               {TESTIMONIALS.map((t, idx) => (
-                <div key={idx} className="rounded-2xl border border-white/10 bg-[#05080f]/80 p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between space-y-6">
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  viewport={{ once: true }}
+                  className="group rounded-2xl border border-white/10 bg-[#05080f]/80 p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between space-y-6 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-2xl hover:shadow-emerald-500/5 hover:-translate-y-1"
+                >
                   <div className="space-y-4">
-                    <Quote className="h-8 w-8 text-emerald-500/40" />
-                    <p className="text-xs leading-relaxed text-zinc-300 font-medium italic">"{t.quote}"</p>
+                    <Quote className="h-8 w-8 text-emerald-500/40 group-hover:text-emerald-500 transition-colors" />
+                    <p className="text-xs leading-relaxed text-zinc-300 font-medium italic">{`"${t.quote}"`}</p>
                   </div>
                   <div className="pt-4 border-t border-white/5">
                     <p className="text-xs font-black text-white">{t.author}</p>
                     <p className="text-[11px] text-emerald-400 font-bold">{t.role}</p>
                     <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{t.fund}</p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
