@@ -6,7 +6,6 @@ import {
   ArrowUpRight, ArrowDownRight, FileText, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 import { useResearchAgent } from '@/hooks/useResearchAgent';
 import { MACRO_SCENARIOS } from '@/lib/mockData';
@@ -19,6 +18,7 @@ import { StructuredReport } from '@/components/dashboard/StructuredReport';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 import { getWatchlist, addToWatchlist, getPortfolio } from '@/lib/api';
 import { DashboardChatbot } from '@/components/dashboard/DashboardChatbot';
+import { CompanySearch } from '@/components/dashboard/CompanySearch';
 
 
 type ResearchSnapshot = {
@@ -325,22 +325,8 @@ export function TerminalPage() {
                   <h2 className="text-4xl lg:text-5xl font-black tracking-tight mb-3 text-zinc-100">Global Market Intelligence</h2>
                   <p className="text-zinc-400 mb-10 max-w-xl font-medium">Enter a stock ticker, company name, or ETF to generate an institutional-grade investment research report powered by AI agents.</p>
                   
-                  <div className="relative w-full max-w-2xl group mx-auto mb-6">
-                    <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
-                    <Input
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      placeholder="e.g. AAPL, Tesla, NVDA..."
-                      className="w-full bg-[#09090b] border-border/60 pl-14 pr-32 h-16 rounded-2xl text-lg shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500/50 transition-all placeholder:text-zinc-600 font-semibold"
-                    />
-                    <Button
-                      onClick={() => handleSearch()}
-                      disabled={!company.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-12 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 font-bold px-8 shadow-md"
-                    >
-                      Analyze
-                    </Button>
+                  <div className="w-full mb-6">
+                    <CompanySearch onSearch={(query) => handleSearch(query)} disabled={running} />
                   </div>
                   
                   <div className="flex items-center gap-3">
