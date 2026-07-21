@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import {
-  ArrowLeft, BrainCircuit, KeyRound, Loader2,
+  ArrowLeft, KeyRound, Loader2,
   Lock, Mail, ShieldCheck, TrendingUp, User, Zap, CheckCircle2,
   Eye, EyeOff, XCircle, ChevronRight, Check
 } from 'lucide-react';
@@ -71,7 +71,8 @@ export function AuthView() {
 
   const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITEKEY as string | undefined;
   const hasGoogleConfig = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
-  const canSubmit = Boolean(turnstileSiteKey && turnstileToken && !submitting);
+  const isTurnstileVerified = !turnstileSiteKey || Boolean(turnstileToken);
+  const canSubmit = Boolean(isTurnstileVerified && !submitting);
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isPasswordValid = password.length >= 6;
@@ -268,10 +269,7 @@ export function AuthView() {
         >
           {/* Animated Logo & Brand */}
           <div className="flex items-center gap-4 mb-14">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-800 shadow-xl shadow-emerald-500/25 group">
-              <BrainCircuit className="h-7 w-7 text-white animate-pulse" />
-              <div className="absolute inset-0 rounded-2xl ring-1 ring-white/30" />
-            </div>
+            <img src="/favicon.svg" alt="Aletheia Logo" className="h-14 w-14 rounded-2xl shadow-xl shadow-emerald-500/25 animate-pulse" />
             <div>
               <p className="text-2xl font-black tracking-tight text-white font-mono">Aletheia</p>
               <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Institutional AI Intelligence</p>
@@ -338,9 +336,7 @@ export function AuthView() {
 
               {/* Mobile Header Logo */}
               <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-700 text-white shadow-lg shadow-emerald-500/30">
-                  <BrainCircuit className="h-6 w-6" />
-                </div>
+                <img src="/favicon.svg" alt="Aletheia Logo" className="h-11 w-11 rounded-xl shadow-lg shadow-emerald-500/30" />
                 <div className="text-left">
                   <p className="font-black text-white text-xl font-mono">Aletheia</p>
                   <p className="text-[10px] uppercase font-bold tracking-widest text-emerald-400">Research Workspace</p>
@@ -591,13 +587,11 @@ export function AuthView() {
 
                 {/* Cloudflare Turnstile */}
                 {!(mode === 'forgot' && otpSent) && (
-                  <div className="pt-2">
+                  <div className="pt-2 flex justify-center">
                     {turnstileSiteKey ? (
-                      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30 p-1 flex justify-center">
-                        <TurnstileWidget key={turnstileKey} siteKey={turnstileSiteKey} onToken={setTurnstileToken} onError={setError} />
-                      </div>
+                      <TurnstileWidget key={turnstileKey} siteKey={turnstileSiteKey} onToken={setTurnstileToken} onError={setError} />
                     ) : (
-                      <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-400 flex items-center gap-2">
+                      <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-400 flex items-center gap-2 w-full justify-center">
                         <ShieldCheck className="h-4 w-4" /> Security verification misconfigured.
                       </p>
                     )}
@@ -639,24 +633,21 @@ export function AuthView() {
 
               {/* Google OAuth Button */}
               {!(mode === 'forgot' && otpSent) && (
-                <div className="mt-5 flex justify-center">
-                  {canSubmit ? (
-                    <div className="w-full flex justify-center rounded-xl overflow-hidden shadow-md border border-white/10 hover:border-white/20 transition-all bg-black">
-                      <GoogleLogin
-                        onSuccess={handleGoogleCredential}
-                        onError={() => setError('Google sign-in cancelled.')}
-                        theme="filled_black"
-                        size="large"
-                        text={mode === 'signup' ? 'signup_with' : 'signin_with'}
-                        shape="rectangular"
-                        width="360"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-zinc-500">
-                      Complete Cloudflare check to unlock Google login
-                    </div>
-                  )}
+                <div className="mt-5 flex justify-center w-full">
+                  <div className={cn(
+                    "w-full flex justify-center rounded-xl overflow-hidden shadow-md border border-white/10 transition-all bg-black",
+                    isTurnstileVerified ? "hover:border-white/20" : "pointer-events-none opacity-40"
+                  )}>
+                    <GoogleLogin
+                      onSuccess={handleGoogleCredential}
+                      onError={() => setError('Google sign-in cancelled.')}
+                      theme="filled_black"
+                      size="large"
+                      text={mode === 'signup' ? 'signup_with' : 'signin_with'}
+                      shape="rectangular"
+                      width="360"
+                    />
+                  </div>
                 </div>
               )}
 

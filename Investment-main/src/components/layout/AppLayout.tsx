@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, History, BookMarked, LogOut, Activity, Settings, Home, LayoutGrid, LineChart, Briefcase as BriefcaseIcon, Brain, Menu, X, ChevronRight, Sparkles
+  Bell, History, BookMarked, LogOut, Activity, Settings, Home, LayoutGrid, LineChart, Briefcase as BriefcaseIcon, Menu, X, ChevronRight, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -80,9 +80,7 @@ export function AppLayout() {
 
             {/* Brand Logo */}
             <Link to="/app/terminal" className="flex items-center gap-2.5 cursor-pointer group">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-800 text-white font-bold shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-                <Brain className="h-4.5 w-4.5" />
-              </div>
+              <img src="/favicon.svg" alt="Aletheia Logo" className="h-8 w-8 rounded-xl shadow-md group-hover:scale-105 transition-transform" />
               <div className="flex items-center gap-1.5">
                 <span className="font-black tracking-tight text-lg text-zinc-100 font-mono">Aletheia</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 hidden sm:inline-block">AI SaaS</span>

@@ -22,8 +22,7 @@ import {
   Sun,
   Moon,
   Star,
-  Quote,
-  BrainCircuit
+  Quote
 } from 'lucide-react';
 
 declare global {
@@ -136,9 +135,7 @@ export function LandingView() {
         <header className="sticky top-0 z-40 border-b border-white/5 bg-[#05080f]/80 backdrop-blur-2xl">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-800 text-white shadow-lg shadow-emerald-500/25">
-                <BrainCircuit className="h-5 w-5" />
-              </div>
+              <img src="/favicon.svg" alt="Aletheia Logo" className="h-9 w-9 rounded-xl shadow-lg shadow-emerald-500/25" />
               <div className="flex flex-col">
                 <h1 className="text-base font-black tracking-tight text-white font-mono leading-none">Aletheia</h1>
                 <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mt-0.5">Equity Research Workspace</p>
@@ -510,9 +507,7 @@ export function LandingView() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8 pb-8 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-700 text-white font-bold shadow-md">
-                  <BrainCircuit className="h-4.5 w-4.5" />
-                </div>
+                <img src="/favicon.svg" alt="Aletheia Logo" className="h-8 w-8 rounded-xl shadow-md" />
                 <span className="text-base font-black text-white font-mono">Aletheia AI</span>
               </div>
               
