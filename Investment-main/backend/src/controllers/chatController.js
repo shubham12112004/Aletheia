@@ -1,6 +1,4 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const { generateWithFallback } = require("../utils/geminiHelper");
 
 exports.handleChat = async (req, res) => {
     try {
@@ -28,13 +26,10 @@ CRITICAL INSTRUCTIONS:
 2. If asked about real-world data or general knowledge outside the context, answer it, but always gently steer the focus back to how Aletheia's tools can help analyze it better.
 3. Keep answers concise, insightful, and easy to read.`;
 
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-pro", // using pro for dashboard as it handles context better
-            systemInstruction: systemPrompt 
+        const answer = await generateWithFallback({
+            prompt: question,
+            systemInstruction: systemPrompt
         });
-
-        const result = await model.generateContent(question);
-        const answer = result.response.text().trim();
 
         return res.status(200).json({
             success: true,
@@ -42,9 +37,8 @@ CRITICAL INSTRUCTIONS:
         });
 
     } catch (err) {
-        console.error("Chat Controller Error:", err);
+        console.error("Chat Controller Error:", err.message);
         
-        // Handle Gemini 403 Forbidden (Invalid API Key)
         if (err.message && err.message.includes("403 Forbidden")) {
             return res.status(200).json({
                 success: true,

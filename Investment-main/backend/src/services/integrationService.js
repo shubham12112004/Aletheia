@@ -1,6 +1,6 @@
 const axios = require("axios");
 const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const { generateWithFallback } = require('../utils/geminiHelper');
 
 
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
@@ -574,22 +574,15 @@ ${JSON.stringify(context)}`;
             required: ["company", "ticker", "verdict", "confidence", "executiveSummary", "businessOverview", "financialSnapshot", "growthAnalysis", "financialRatios", "swot", "competitors", "recentNews", "risks", "opportunities", "bullCase", "bearCase", "investmentRecommendation", "finalVerdict"]
         };
 
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-pro",
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: schema,
-                temperature: 0.2
-            }
+        const text = await generateWithFallback({
+            prompt,
+            schema
         });
-
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
 
         if (!text) throw new Error('Gemini returned an empty report.');
         return JSON.parse(text);
     } catch (error) {
         console.error('Gemini Error:', error.message);
-        return buildFallbackReport(context); // This will need adjusting but handles error state
+        return buildFallbackReport(context);
     }
 };

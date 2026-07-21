@@ -30,6 +30,10 @@ const envSchema = z.object({
 
   GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
 
+  GEMINI_API_KEY: z.string().optional().default(""),
+
+  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+
   TAVILY_API_KEY: z.string().optional().default(""),
 
   FINNHUB_API_KEY: z.string().optional().default(""),
@@ -53,5 +57,7 @@ module.exports = parsed.data || {
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
   MONGODB_URI: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ai-investment",
   JWT_SECRET: process.env.JWT_SECRET || "default_super_secret_jwt_key_32_characters_long_min",
-  JWT_EXPIRES_IN: "7d"
+  JWT_EXPIRES_IN: "7d",
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash"
 };

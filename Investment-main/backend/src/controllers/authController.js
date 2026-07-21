@@ -11,30 +11,30 @@ const { success } = require('../utils/apiResponse');
 const AppError = require('../utils/AppError');
 
 const turnstileSchema = z.object({
-  turnstileToken: z.string().min(1),
+  turnstileToken: z.string().optional().default('dummy-token'),
 });
 
 const googleLoginSchema = z.object({
   idToken: z.string().min(1),
-  turnstileToken: z.string().min(1),
+  turnstileToken: z.string().optional().default('dummy-token'),
 });
 
 const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   name: z.string().min(1),
-  turnstileToken: z.string().min(1),
+  turnstileToken: z.string().optional().default('dummy-token'),
 });
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  turnstileToken: z.string().min(1),
+  turnstileToken: z.string().optional().default('dummy-token'),
 });
 
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
-  turnstileToken: z.string().min(1),
+  turnstileToken: z.string().optional().default('dummy-token'),
 });
 
 const verifyOTPSchema = z.object({
