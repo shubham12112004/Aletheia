@@ -6,8 +6,22 @@ const Watchlist = require("../models/Watchlist");
 // Helper to wait
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCachedData = (key) => {
+    const item = cache.get(key);
+    if (item && Date.now() - item.timestamp < CACHE_TTL) return item.data;
+    return null;
+};
+const setCachedData = (key, data) => cache.set(key, { timestamp: Date.now(), data });
+
 exports.getOverview = asyncHandler(async (req, res) => {
-    // S&P 500, NASDAQ, Dow Jones proxies (SPY, QQQ, DIA)
+    const cacheKey = 'market_overview';
+    const cached = getCachedData(cacheKey);
+    if (cached) return success(res, cached, "Market overview retrieved (cached)");
+
     const indices = ["SPY", "QQQ", "DIA"];
     const results = [];
 
@@ -28,11 +42,15 @@ exports.getOverview = asyncHandler(async (req, res) => {
         }
     }
 
+    setCachedData(cacheKey, results);
     return success(res, results, "Market overview retrieved");
 });
 
 exports.getScreener = asyncHandler(async (req, res) => {
-    // Trending tech stocks for screener demo
+    const cacheKey = 'market_screener';
+    const cached = getCachedData(cacheKey);
+    if (cached) return success(res, cached, "Screener data retrieved (cached)");
+
     const trending = ["AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMZN", "TSLA"];
     const results = [];
 
@@ -57,6 +75,7 @@ exports.getScreener = asyncHandler(async (req, res) => {
         }
     }
 
+    setCachedData(cacheKey, results);
     return success(res, results, "Screener data retrieved");
 });
 
@@ -65,8 +84,11 @@ exports.getPortfolio = asyncHandler(async (req, res) => {
     const watchlist = await Watchlist.find({ userId });
     
     // Simulate a portfolio based on watchlist items
-    // If watchlist is empty, use a default fallback to show some data
     const holdings = watchlist.length > 0 ? watchlist.map(w => w.ticker) : ["AAPL", "MSFT"];
+    const cacheKey = `portfolio_${holdings.sort().join('_')}`;
+    const cached = getCachedData(cacheKey);
+    if (cached) return success(res, cached, "Simulated portfolio retrieved (cached)");
+
     let totalValue = 0;
     let totalDailyChange = 0;
     const assets = [];
@@ -106,5 +128,6 @@ exports.getPortfolio = asyncHandler(async (req, res) => {
         assets
     };
 
+    setCachedData(cacheKey, portfolioData);
     return success(res, portfolioData, "Simulated portfolio retrieved");
 });

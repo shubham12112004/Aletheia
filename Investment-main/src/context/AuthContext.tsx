@@ -7,7 +7,6 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 
 type View = 'landing' | 'auth' | 'dashboard';
@@ -40,6 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   
+  // Load session from storage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const session = JSON.parse(stored);
+        if (session && session.token && session.user) {
+          setToken(session.token);
+          setUser(session.user);
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+  
   const navigateRoute = useNavigate();
 
   const setSession = useCallback((session: { token: string; user: User }) => {
@@ -47,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(session.user);
     navigateRoute('/app/terminal');
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     } catch {
       // ignore storage errors
     }
@@ -62,18 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore storage errors
     }
-
-    if (supabase) await supabase.auth.signOut();
   }, [navigateRoute]);
 
-  useEffect(() => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore storage errors
-    }
-    if (hasSupabaseConfig && supabase) void supabase.auth.signOut();
-  }, []);
+  // Removed faulty useEffect that deleted session on load
 
   const navigate = useCallback((nextView: View, nextAuthMode?: AuthMode) => {
     if (nextAuthMode) setAuthMode(nextAuthMode);

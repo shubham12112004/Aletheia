@@ -197,7 +197,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
 // Update Profile
 const updateProfile = asyncHandler(async (req, res) => {
   const { email, name } = updateProfileSchema.parse(req.body);
-  const userId = req.user.sub;
+  const userId = req.user._id;
 
   const emailCheck = await User.findOne({ email: email.toLowerCase(), _id: { $ne: userId } });
   if (emailCheck) {
@@ -221,7 +221,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 // Update Password
 const updatePassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = updatePasswordSchema.parse(req.body);
-  const userId = req.user.sub;
+  const userId = req.user._id;
 
   const user = await User.findById(userId);
   if (!user || !user.password) {
@@ -241,7 +241,7 @@ const updatePassword = asyncHandler(async (req, res) => {
 
 // Delete Account
 const deleteAccount = asyncHandler(async (req, res) => {
-  const userId = req.user.sub;
+  const userId = req.user._id;
   const user = await User.findByIdAndDelete(userId);
   if (!user) throw new AppError('User not found', 404);
 

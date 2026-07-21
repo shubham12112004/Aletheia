@@ -3,6 +3,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { LandingView } from '@/components/LandingView';
 import { AuthView } from '@/components/AuthView';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { TerminalPage } from '@/pages/TerminalPage';
 import { MarketsPage } from '@/pages/MarketsPage';
@@ -43,6 +44,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router />
+        <Toaster position="top-right" theme="dark" />
       </AuthProvider>
     </ThemeProvider>
   );

@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, History, BookMarked, LogOut, Activity, Settings, Home, LayoutGrid, LineChart, Briefcase as BriefcaseIcon, Brain
+  Bell, History, BookMarked, LogOut, Activity, Settings, Home, LayoutGrid, LineChart, Briefcase as BriefcaseIcon, Brain, Menu, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -18,6 +18,7 @@ export function AppLayout() {
   const location = useLocation();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const addNotification = (title: string, desc: string, type: 'info' | 'success' | 'warn' = 'info') => {
@@ -64,6 +65,9 @@ export function AppLayout() {
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full px-4 sm:px-6 lg:px-8 items-center justify-between">
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden h-9 w-9 text-zinc-400 hover:text-white">
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
             <Link to="/app/terminal" className="flex items-center gap-2 cursor-pointer">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 text-white font-bold shadow-md">
                 <Brain className="h-5 w-5" />
@@ -139,6 +143,32 @@ export function AppLayout() {
             </div>
           </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="lg:hidden border-t border-border/40 bg-background/95 backdrop-blur-xl overflow-hidden">
+              <div className="px-4 py-4 space-y-2">
+                {navItems.map(item => (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "flex items-center px-4 py-3 rounded-xl transition-colors font-semibold",
+                      location.pathname === item.path 
+                        ? "bg-emerald-500/10 text-emerald-500" 
+                        : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                    )}
+                  >
+                    {item.icon}
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       <main className="flex-1 w-full relative z-10">

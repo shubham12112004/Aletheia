@@ -15,7 +15,7 @@ import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import { ProcessingPipeline } from '@/components/dashboard/ProcessingPipeline';
 import { RecommendationBadge } from '@/components/dashboard/RecommendationBadge';
 import { DashboardCharts } from '@/components/dashboard/DashboardCharts';
-import { MarkdownReport } from '@/components/dashboard/MarkdownReport';
+import { StructuredReport } from '@/components/dashboard/StructuredReport';
 import { OnboardingModal } from '@/components/dashboard/OnboardingModal';
 import { getWatchlist, addToWatchlist, getPortfolio } from '@/lib/api';
 import { DashboardChatbot } from '@/components/dashboard/DashboardChatbot';
@@ -235,13 +235,13 @@ export function TerminalPage() {
                   <DashboardCharts result={activeDataset.result} />
                 </DashboardCard>
                 
-                {/* Markdown Report Render */}
-                <DashboardCard className="p-6 lg:p-8 border-border/40 shadow-md flex flex-col max-h-[800px]">
+                {/* Structured Report Render */}
+                <DashboardCard className="p-6 lg:p-8 border-border/40 shadow-md flex flex-col">
                   <h3 className="text-xl font-black mb-6 flex items-center gap-2 border-b border-border/40 pb-4 text-zinc-100 shrink-0">
                     <FileText className="h-6 w-6 text-emerald-500" /> AI Evaluation Report
                   </h3>
-                  <div className="overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
-                    <MarkdownReport markdown={activeDataset.rawMarkdown} />
+                  <div className="w-full">
+                    <StructuredReport data={activeDataset.result} />
                   </div>
                   
                   {/* Smart Follow-ups */}

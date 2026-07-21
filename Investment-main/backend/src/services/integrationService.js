@@ -1,11 +1,6 @@
 const axios = require("axios");
-const OpenAI = require("openai");
-
-
-const groq = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: "https://api.groq.com/openai/v1"
-});
+const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 
 const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
@@ -541,75 +536,60 @@ exports.generateGroqReport = async ({ profile, quote, financials, news, web }) =
     const context = buildResearchContext({ profile, quote, financials, news, web });
 
     try {
-        const prompt = `You are a professional CFA investment analyst at a top-tier hedge fund. Analyze the following compact, verified dataset. Do not invent facts. Return only valid JSON matching this schema:
-
-{
-  "company":"",
-  "ticker":"",
-  "verdict":"BUY" | "HOLD" | "SELL",
-  "confidence": <integer from 1 to 100>,
-  "executiveSummary":[""],
-  "pros":[{"text":"reason","weight":"high" | "medium" | "low"}],
-  "cons":[{"text":"reason","weight":"high" | "medium" | "low"}],
-  "citations":[],
-  "suggestedQuestions":["string", "string", "string"],
-  "report":"markdown report"
-}
-
-REPORT REQUIREMENTS (Keep the 'report' concise, max 300 words total! Must use these exact Markdown headers):
-# Executive Summary
-(2-3 sentences)
-
-## Investment Recommendation
-(Buy/Hold/Sell)
-
-## Why?
-(Explain the reasoning)
-
-## Key Positive Signals
-- (Revenue growth, Profitability, etc)
-
-## Risk Factors
-(Highlight possible risks)
-
-## Financial Metrics
-(Present data cleanly in bullet points or markdown tables)
-
-## AI Confidence Score
-[Integer Score]% Confidence
-(1 sentence)
-
-## Bull Case
-(1-2 sentences)
-
-## Bear Case
-(1-2 sentences)
-
-## Final Conclusion
-(1 sentence actionable summary)
+        const prompt = `You are a professional CFA investment analyst at a top-tier hedge fund. Analyze the following compact, verified dataset. Do not invent facts. Return only valid JSON.
 
 DATA:
 ${JSON.stringify(context)}`;
 
-        const response = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-                { role: 'system', content: 'Return only valid JSON. Keep the report concise and cite only supplied sources.' },
-                { role: 'user', content: prompt },
-            ],
-            temperature: 0.2,
-            max_tokens: 1800,
+        const schema = {
+            type: SchemaType.OBJECT,
+            properties: {
+                company: { type: SchemaType.STRING },
+                ticker: { type: SchemaType.STRING },
+                verdict: { type: SchemaType.STRING, enum: ["BUY", "HOLD", "SELL"] },
+                confidence: { type: SchemaType.INTEGER, description: "Integer from 1 to 100" },
+                executiveSummary: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                businessOverview: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                financialSnapshot: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                growthAnalysis: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                financialRatios: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                swot: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                        strengths: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                        weaknesses: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                        opportunities: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                        threats: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
+                    }
+                },
+                competitors: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                recentNews: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                risks: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                opportunities: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                bullCase: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                bearCase: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+                investmentRecommendation: { type: SchemaType.STRING },
+                finalVerdict: { type: SchemaType.STRING }
+            },
+            required: ["company", "ticker", "verdict", "confidence", "executiveSummary", "businessOverview", "financialSnapshot", "growthAnalysis", "financialRatios", "swot", "competitors", "recentNews", "risks", "opportunities", "bullCase", "bearCase", "investmentRecommendation", "finalVerdict"]
+        };
+
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-pro",
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: schema,
+                temperature: 0.2
+            }
         });
 
-        const text = (response.choices[0]?.message?.content || '')
-            .replace(/```json/g, '')
-            .replace(/```/g, '')
-            .trim();
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
 
-        if (!text) throw new Error('Groq returned an empty report.');
+        if (!text) throw new Error('Gemini returned an empty report.');
         return JSON.parse(text);
     } catch (error) {
-        console.error('Groq Error:', error.message);
-        return buildFallbackReport(context);
+        console.error('Gemini Error:', error.message);
+        return buildFallbackReport(context); // This will need adjusting but handles error state
     }
 };
