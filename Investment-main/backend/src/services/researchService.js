@@ -1,4 +1,5 @@
 const integration = require("./integrationService");
+
 function calculateDataConfidence({ profile, quote, financials, news, web }) {
     const metrics = financials?.metric || {};
     const hasNumber = (value) => Number.isFinite(Number(value));
@@ -19,104 +20,34 @@ function calculateDataConfidence({ profile, quote, financials, news, web }) {
 /**
  * Complete AI Investment Research Pipeline
  */
-exports.executeResearch = async (
-    company,
-    scenarioId,
-    focusOptions = {}
-) => {
-
+exports.executeResearch = async (company) => {
     try {
-
         console.log("--------------------------------");
         console.log("Starting Research");
         console.log("Company:", company);
         console.log("--------------------------------");
 
-
-        // ============================================================
-        // STEP 1: Resolve Company Name -> Symbol
-        // ============================================================
-
+        // STEP 1: Resolve Symbol
         const searchResult = await integration.searchCompany(company);
-
-
         if (!searchResult) {
-            throw new Error(
-                `Company "${company}" not found`
-            );
+            throw new Error(`Company "${company}" not found`);
         }
 
-
         const symbol = searchResult.symbol;
-
-
         console.log("Resolved Symbol:", symbol);
 
-
-
-        // ============================================================
         // STEP 2: Get Company Profile
-        // ============================================================
+        const profile = await integration.getCompanyProfile(symbol);
+        const companyName = profile?.name || searchResult.description || company;
+        const ticker = profile?.ticker || symbol;
 
-
-        const profile =
-            await integration.getCompanyProfile(symbol);
-
-
-
-        console.log(
-            "Profile:",
-            profile
-        );
-
-
-
-        // Make sure frontend always gets company details
-
-        const companyName =
-            profile?.name ||
-            searchResult.description ||
-            company;
-
-
-
-        const ticker =
-            profile?.ticker ||
-            symbol;
-
-
-
-        // ============================================================
-        // STEP 3: Fetch all data parallel
-        // ============================================================
-
-
-        const [
-            quote,
-            financials,
-            news,
-            web
-        ] = await Promise.all([
-
-
+        // STEP 3: Fetch all data in parallel
+        const [quote, financials, news, web] = await Promise.all([
             integration.getQuote(ticker),
-
-
             integration.getBasicFinancials(ticker),
-
-
-            integration.getCompanyNews(
-                companyName
-            ),
-
-
-            integration.tavilySearch(
-                companyName
-            )
-
+            integration.getCompanyNews(companyName),
+            integration.tavilySearch(companyName)
         ]);
-
-
 
         const dataConfidence = calculateDataConfidence({
             profile,
@@ -125,184 +56,38 @@ exports.executeResearch = async (
             news,
             web,
         });
-        console.log("Quote Loaded");
-        console.log("Financials Loaded");
-        console.log("News Loaded");
-        console.log("Web Research Loaded");
-
-
-
-
-        // ============================================================
-        // STEP 4: Generate Groq Report
-        // ============================================================
-
-
-        const report =
-            await integration.generateGroqReport({
-
-                profile,
-
-                quote,
-
-                financials,
-
-                news,
-
-                web
-
-            });
-
-
-
-        console.log(
-            "AI Report Generated"
-        );
-
-
-
-
-        // ============================================================
-        // STEP 5: Return frontend response
-        // ============================================================
-
-
-        return {
-
-
-            // Basic identity
-
-            company:
-                report?.company ||
-                companyName,
-
-
-            ticker:
-                report?.ticker ||
-                ticker,
-
-
-
-            // Finnhub data
-
-            profile,
-
-            quote,
-
-            financials,
-
-
-            metrics:
-                financials?.metric || {},
-
-
-
-            // News
-
-            news,
-
-
-
-            // AI generated fields
-
-
-            verdict:
-                report?.verdict ||
-                "PASS",
 
         console.log("Quote Loaded");
         console.log("Financials Loaded");
         console.log("News Loaded");
         console.log("Web Research Loaded");
 
-
-
-
-        // ============================================================
-        // STEP 4: Generate Groq Report
-        // ============================================================
-
-
-        const report =
-            await integration.generateGroqReport({
-
-                profile,
-
-                quote,
-
-                financials,
-
-                news,
-
-                web
-
-            });
-
-
-
-        console.log(
-            "AI Report Generated"
-        );
-
-
-
-
-        // ============================================================
-        // STEP 5: Return frontend response
-        // ============================================================
-
-
-        return {
-
-
-            // Basic identity
-
-            company:
-                report?.company ||
-                companyName,
-
-
-            ticker:
-                report?.ticker ||
-                ticker,
-
-
-
-            // Finnhub data
-
+        // STEP 4: Generate Report
+        const report = await integration.generateGroqReport({
             profile,
-
             quote,
-
             financials,
-
-
-            metrics:
-                financials?.metric || {},
-
-
-
-            // News
-
             news,
+            web
+        });
 
+        console.log("AI Report Generated");
 
-
-            // AI generated fields
-
-
-            verdict:
-                report?.verdict ||
-                "PASS",
-
-
-
-            confidence:
-                Number.isFinite(Number(report?.confidence)) && Number(report.confidence) > 0
-                    ? Math.min(Math.round(Number(report.confidence)), 100)
-                    : dataConfidence,
-                    
-            // Structured Report Data
+        // STEP 5: Return formatted response
+        return {
+            company: report?.company || companyName,
+            ticker: report?.ticker || ticker,
+            profile,
+            quote,
+            financials,
+            metrics: financials?.metric || {},
+            news,
+            verdict: report?.verdict || "PASS",
+            confidence: Number.isFinite(Number(report?.confidence)) && Number(report.confidence) > 0
+                ? Math.min(Math.round(Number(report.confidence)), 100)
+                : dataConfidence,
+            
+            // Structured Report Fields
             executiveSummary: report?.executiveSummary || [],
             businessOverview: report?.businessOverview || [],
             financialSnapshot: report?.financialSnapshot || [],
@@ -319,11 +104,8 @@ exports.executeResearch = async (
             finalVerdict: report?.finalVerdict || "Requires further human analysis."
         };
 
-    } catch(error) {
-        console.error(
-            "Research Pipeline Failed"
-        );
-        console.error(error);
+    } catch (error) {
+        console.error("Research Pipeline Failed:", error);
         throw error;
     }
 };

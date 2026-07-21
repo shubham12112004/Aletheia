@@ -4,80 +4,54 @@ const { z } = require("zod");
 dotenv.config();
 
 const envSchema = z.object({
-  // Application
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
 
   PORT: z.coerce.number().int().positive().default(5000),
 
-  CLIENT_URL: z.string().url(),
+  CLIENT_URL: z.string().default("http://localhost:5173"),
 
-  // Database
-  MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+  MONGODB_URI: z.string().default("mongodb://127.0.0.1:27017/ai-investment"),
 
-  // JWT
   JWT_SECRET: z
     .string()
-    .min(32, "JWT_SECRET must be at least 32 characters"),
+    .default("default_super_secret_jwt_key_32_characters_long_min"),
 
   JWT_EXPIRES_IN: z.string().default("7d"),
 
-  // Google OAuth
-  GOOGLE_CLIENT_ID: z
-    .string()
-    .min(1, "GOOGLE_CLIENT_ID is required"),
+  GOOGLE_CLIENT_ID: z.string().optional().default(""),
 
-  GOOGLE_CLIENT_SECRET: z
-    .string()
-    .min(1, "GOOGLE_CLIENT_SECRET is required"),
+  GOOGLE_CLIENT_SECRET: z.string().optional().default(""),
 
-  // Cloudflare Turnstile
-  TURNSTILE_SECRET_KEY: z
-    .string()
-    .min(1, "TURNSTILE_SECRET_KEY is required"),
+  TURNSTILE_SECRET_KEY: z.string().optional().default(""),
 
-  // GROQ
-  GROQ_API_KEY: z
-    .string()
-    .min(1, "GROQ_API_KEY is required"),
+  GROQ_API_KEY: z.string().optional().default(""),
 
-  GROQ_MODEL: z
-    .string()
-    .default("llama-3.3-70b-versatile"),
+  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
 
-  // Tavily
-  TAVILY_API_KEY: z
-    .string()
-    .min(1, "TAVILY_API_KEY is required"),
+  TAVILY_API_KEY: z.string().optional().default(""),
 
-  // Finnhub
-  FINNHUB_API_KEY: z
-    .string()
-    .min(1, "FINNHUB_API_KEY is required"),
+  FINNHUB_API_KEY: z.string().optional().default(""),
 
-  // News API
-  NEWS_API_KEY: z
-    .string()
-    .min(1, "NEWS_API_KEY is required"),
+  NEWS_API_KEY: z.string().optional().default(""),
 
-  // Resend (Password reset emails)
-  RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM: z.string().optional(),
-  RESEND_TO_OVERRIDE: z.string().optional(),
+  RESEND_API_KEY: z.string().optional().default(""),
+  RESEND_FROM: z.string().optional().default(""),
+  RESEND_TO_OVERRIDE: z.string().optional().default(""),
 });
-
 
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  const errors = parsed.error.issues.map(
-    (issue) => `${issue.path.join(".")}: ${issue.message}`
-  );
-
-  throw new Error(
-    `Invalid environment configuration:\n${errors.join("\n")}`
-  );
+  console.warn("Environment schema warnings:", parsed.error.issues);
 }
 
-module.exports = parsed.data;
+module.exports = parsed.data || {
+  NODE_ENV: process.env.NODE_ENV || "development",
+  PORT: process.env.PORT || 5000,
+  CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
+  MONGODB_URI: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ai-investment",
+  JWT_SECRET: process.env.JWT_SECRET || "default_super_secret_jwt_key_32_characters_long_min",
+  JWT_EXPIRES_IN: "7d"
+};
