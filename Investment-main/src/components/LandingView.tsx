@@ -10,7 +10,6 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  ChevronRight,
   FileInput,
   FileOutput,
   Gauge,
@@ -426,9 +425,9 @@ export function LandingView() {
                         <motion.div
                           animate={{ x: [0, 4, 0] }}
                           transition={{ duration: 1.5, repeat: Infinity }}
-                          className="text-emerald-500/40"
+                          className="text-emerald-500/40 font-bold text-lg"
                         >
-                          <ChevronRight className="h-5 w-5" />
+                          →
                         </motion.div>
                       </div>
                     )}
