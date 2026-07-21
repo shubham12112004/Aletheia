@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
+import { motion } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Camera } from 'lucide-react';
+import { Camera, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DashboardCard } from '@/components/dashboard/DashboardCard';
@@ -82,43 +83,65 @@ export function ProfileSettings({ profileData }: { profileData: any }) {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Full name</label>
-          <Input {...register('name')} className="h-11 border-white/10 bg-white/5 text-white" />
-          {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name.message}</p>}
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Email address</label>
-          <Input type="email" {...register('email')} className="h-11 border-white/10 bg-white/5 text-white" />
-          {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>}
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Bio</label>
-          <Input {...register('bio')} className="h-11 border-white/10 bg-white/5 text-white" />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Company</label>
-          <Input {...register('company')} className="h-11 border-white/10 bg-white/5 text-white" />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Occupation</label>
-          <Input {...register('occupation')} className="h-11 border-white/10 bg-white/5 text-white" />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Country</label>
-          <Input {...register('country')} className="h-11 border-white/10 bg-white/5 text-white" />
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-zinc-400 mb-1.5">Timezone</label>
-          <Input {...register('timezone')} className="h-11 border-white/10 bg-white/5 text-white" />
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="grid gap-5 sm:grid-cols-2">
+        <motion.div className="sm:col-span-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Full Name</label>
+          <Input {...register('name')} placeholder="Your full name" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+          {errors.name && <p className="mt-1.5 text-xs text-rose-400 font-medium">{errors.name.message}</p>}
+        </motion.div>
         
-        <div className="sm:col-span-2 mt-2">
-          <Button type="submit" disabled={isSubmitting || updateProfile.isPending} className="rounded-xl bg-emerald-500 font-bold text-[#05080f] hover:bg-emerald-400">
-            {updateProfile.isPending ? 'Saving...' : 'Save Profile'}
+        <motion.div className="sm:col-span-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Email Address</label>
+          <Input type="email" {...register('email')} placeholder="your.email@example.com" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+          {errors.email && <p className="mt-1.5 text-xs text-rose-400 font-medium">{errors.email.message}</p>}
+        </motion.div>
+        
+        <motion.div className="sm:col-span-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Bio</label>
+          <Input {...register('bio')} placeholder="Your professional bio" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+        </motion.div>
+        
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Company</label>
+          <Input {...register('company')} placeholder="Company name" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+        </motion.div>
+        
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Occupation</label>
+          <Input {...register('occupation')} placeholder="Your role" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+        </motion.div>
+        
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Country</label>
+          <Input {...register('country')} placeholder="Your country" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+        </motion.div>
+        
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+          <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Timezone</label>
+          <Input {...register('timezone')} placeholder="UTC" className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-zinc-600 focus-visible:border-emerald-500/50 focus-visible:ring-2 focus-visible:ring-emerald-500/20" />
+        </motion.div>
+        
+        <motion.div className="sm:col-span-2 mt-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+          <Button 
+            type="submit" 
+            disabled={isSubmitting || updateProfile.isPending} 
+            className="w-full h-11 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 font-bold text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-500 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            {updateProfile.isPending ? (
+              <>
+                <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Saving Profile...
+              </>
+            ) : updateProfile.isSuccess ? (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                Profile Saved
+              </>
+            ) : (
+              'Save Profile Changes'
+            )}
           </Button>
-        </div>
+        </motion.div>
       </form>
     </DashboardCard>
   );
