@@ -32,6 +32,8 @@ declare global {
       ready?: (callback: () => void) => void;
       render: (container: HTMLElement | string, options: any) => string;
       remove: (widgetId?: string) => void;
+      reset: (widgetId?: string) => void;
+      getResponse: (widgetId?: string) => string | undefined;
     };
   }
 }
