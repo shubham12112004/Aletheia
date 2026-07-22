@@ -41,8 +41,28 @@ const deleteResearch = asyncHandler(async (req, res) => {
   return success(res, null, 'Research deleted successfully');
 });
 
+// Save research to history
+const saveHistory = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { company, ticker, finalReport, graphState, intermediateOutputs, sources, executionTimeMs } = req.body;
+
+  const research = await Research.create({
+    userId,
+    company: company || 'Unknown Company',
+    ticker: ticker || 'N/A',
+    finalReport,
+    graphState,
+    intermediateOutputs,
+    sources: sources || [],
+    executionTimeMs
+  });
+
+  return success(res, research, 'Research saved to history successfully');
+});
+
 module.exports = {
   getHistory,
   getResearchById,
-  deleteResearch
+  deleteResearch,
+  saveHistory
 };
