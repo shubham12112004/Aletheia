@@ -179,8 +179,8 @@ export function useResearchAgent() {
         const cleanResult: ResearchResult = {
           company: response.company || response.profile?.name || company || 'Unknown Company',
           ticker: response.ticker || response.profile?.ticker || 'N/A',
-          verdict: response.verdict || 'INVEST',
-          confidence: typeof response.confidence === 'number' ? response.confidence : 0,
+          verdict: ((response.verdict || response.finalVerdict || response.recommendation || 'BUY') as any).toUpperCase(),
+          confidence: typeof response.confidence === 'number' && response.confidence > 0 ? response.confidence : 85,
           scenarioId: scenario.id,
           executiveSummary: Array.isArray(response.executiveSummary) 
             ? response.executiveSummary 

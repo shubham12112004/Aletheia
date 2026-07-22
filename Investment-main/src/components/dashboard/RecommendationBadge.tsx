@@ -2,12 +2,13 @@ import { motion } from 'framer-motion';
 import { ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import type { Verdict } from '@/lib/types';
 
-export function RecommendationBadge({ verdict }: { verdict: Verdict }) {
+export function RecommendationBadge({ verdict }: { verdict: string }) {
+  const v = (verdict || '').toUpperCase();
   const config =
-    verdict === 'INVEST'
+    (v === 'BUY' || v === 'INVEST')
       ? { label: 'BUY / INVEST', icon: ShieldCheck, className: 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/35', glow: 'shadow-[0_0_24px_rgba(52,211,153,0.2)]' }
-      : verdict === 'PASS'
-        ? { label: 'PASS / SELL', icon: ShieldAlert, className: 'bg-red-500/15 text-red-400 ring-1 ring-red-500/35', glow: 'shadow-[0_0_24px_rgba(239,68,68,0.2)]' }
+      : (v === 'SELL' || v === 'PASS')
+        ? { label: 'SELL / PASS', icon: ShieldAlert, className: 'bg-red-500/15 text-red-400 ring-1 ring-red-500/35', glow: 'shadow-[0_0_24px_rgba(239,68,68,0.2)]' }
         : { label: 'HOLD', icon: AlertTriangle, className: 'bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/35', glow: 'shadow-[0_0_24px_rgba(245,158,11,0.2)]' };
 
   const Icon = config.icon;

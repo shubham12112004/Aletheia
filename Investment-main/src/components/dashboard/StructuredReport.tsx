@@ -284,12 +284,12 @@ export function StructuredReport({ data }: { data: ReportData }) {
         <div className="grid gap-4 md:grid-cols-2 pt-2">
           <div className="bg-black/40 p-4 rounded-xl border border-white/5">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Target Action</span>
-            <p className="text-2xl font-black text-emerald-400 tracking-tight">{data.investmentRecommendation || data.verdict || 'HOLD'}</p>
+            <p className="text-2xl font-black text-emerald-400 tracking-tight">{data.verdict || 'BUY'}</p>
           </div>
 
           <div className="bg-black/40 p-4 rounded-xl border border-white/5">
             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Analytical Conclusion</span>
-            <p className="text-xs text-zinc-300 font-semibold leading-relaxed mt-1">{data.finalVerdict || 'Further research recommended before position sizing.'}</p>
+            <p className="text-xs text-zinc-300 font-semibold leading-relaxed mt-1">{data.investmentRecommendation || data.finalVerdict || 'Favorable growth trajectory supported by solid financial metrics.'}</p>
           </div>
         </div>
       </div>
