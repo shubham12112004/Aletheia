@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
-import type { Verdict } from '@/lib/types';
 
 export function RecommendationBadge({ verdict }: { verdict: string }) {
   const v = (verdict || '').toUpperCase();
