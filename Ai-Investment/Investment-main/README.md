@@ -1,0 +1,212 @@
+<div align="center">
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/brain-circuit.svg" width="120" alt="Aletheia AI Logo">
+  
+  # Aletheia
+  **Institutional-grade AI financial intelligence, democratized.**
+
+  [![Version](https://img.shields.io/badge/version-1.0.0-emerald.svg?style=for-the-badge)](https://github.com/shubham12112004/Aletheia)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENSE)
+  [![React](https://img.shields.io/badge/react-18.0.0-blue.svg?style=for-the-badge&logo=react)](https://reactjs.org/)
+  [![Node.js](https://img.shields.io/badge/Node.js-Express-green.svg?style=for-the-badge&logo=node.js)](https://nodejs.org/)
+  [![LangChain](https://img.shields.io/badge/LangChain-AI-orange.svg?style=for-the-badge)](https://langchain.com/)
+
+  <p align="center">
+    A premium, open-source AI platform designed to transform how quantitative analysts and retail investors conduct market research.
+  </p>
+</div>
+
+---
+
+## 📖 Overview
+
+**The Problem:** Traditional financial research requires navigating dozens of tabs across SEC filings, news terminals, and earnings transcripts—a process that takes hours. Retail investors lack the multi-million dollar infrastructure of hedge funds.
+
+**The Solution:** Aletheia is an AI-first financial terminal. You enter a ticker, and our backend LangChain swarm pulls live market data, parses the latest news, reads SEC filings, and streams a deterministic "Buy, Hold, or Sell" verdict to a stunning Bloomberg-inspired dashboard.
+
+**Why AI?** Large Language Models (specifically Google's Gemini Flash/Pro models) excel at parsing immense volumes of unstructured text (like 10-K filings) and synthesizing them into actionable signals in seconds. Aletheia orchestrates these models into a secure, deterministic pipeline.
+
+---
+
+## ✨ Features
+
+- 🤖 **Agentic AI Pipeline:** Powered by LangChain, multiple agents fact-check and analyze SEC filings in parallel.
+- 📊 **Bloomberg-style Dashboard:** A high-density, premium interface utilizing glassmorphism and real-time animations.
+- 💬 **Data Interrogation:** Click "Interrogate Research" to spawn a chatbot with exact context of the generated report.
+- 💼 **Portfolio Watchlist:** Track your assets in a unified pane of glass.
+- 🔐 **Enterprise Security:** Cloudflare Turnstile integration, OTP authentication, and JWT sessions.
+- 🌙 **Modern Theming:** A beautiful dark-mode first design constructed with Tailwind CSS and Framer Motion.
+
+---
+
+## 📸 Screenshots
+
+| Dashboard | AI Research Generation |
+| :---: | :---: |
+| <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=800" alt="Dashboard View" width="400"> | <img src="https://images.unsplash.com/photo-1639322537228-f710d846310a?auto=format&fit=crop&q=80&w=800" alt="AI Research" width="400"> |
+
+| Authentication Flow | Intelligent Chat |
+| :---: | :---: |
+| <img src="https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&q=80&w=800" alt="Login View" width="400"> | <img src="https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&q=80&w=800" alt="Chat View" width="400"> |
+
+*(Note: Replace placeholder images with actual repository screenshots before publishing)*
+
+---
+
+## 🏛️ Architecture
+
+```mermaid
+graph TD
+    Client[React / Vite Client]
+    Socket[Socket.IO Stream]
+    Auth[Express Auth Routes]
+    Agent[LangChain Supervisor Agent]
+    News[Tavily News API]
+    Market[Finnhub Market Data]
+    LLM[Google Gemini LLM]
+    DB[(MongoDB)]
+
+    Client <-->|Real-time UI Updates| Socket
+    Client -->|REST| Auth
+    Auth <--> DB
+    Client -->|Trigger Research| Agent
+    Agent --> Market
+    Agent --> News
+    Agent <--> LLM
+    Agent -->|Stream Chunks| Socket
+```
+
+---
+
+## 💻 Tech Stack
+
+### Frontend
+- **Framework:** React 18 + Vite
+- **Styling:** Tailwind CSS + shadcn/ui
+- **Animations:** Framer Motion
+- **Icons:** Lucide React
+
+### Backend
+- **Server:** Node.js + Express
+- **Real-time:** Socket.IO
+- **Database:** MongoDB + Mongoose
+- **Auth:** JWT + Google OAuth + Cloudflare Turnstile
+
+### AI Layer
+- **Orchestration:** LangChain / LangGraph
+- **Models:** Google Generative AI (Gemini Flash/Pro)
+- **Data APIs:** Finnhub, Tavily
+
+---
+
+## 🚀 Installation & Setup
+
+### Prerequisites
+- Node.js (v18+)
+- MongoDB (Local or Atlas)
+- API Keys (Google Gemini, Finnhub, Tavily, Cloudflare Turnstile)
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/shubham12112004/Aletheia.git
+cd Aletheia
+```
+
+### 2. Backend Setup
+```bash
+cd backend
+npm install
+```
+Rename `.env.example` to `.env` and fill in your keys:
+```env
+GEMINI_API_KEY=your_gemini_key
+FINNHUB_API_KEY=your_finnhub_key
+TAVILY_API_KEY=your_tavily_key
+MONGODB_URI=mongodb://localhost:27017/aletheia
+# ... see .env.example for more
+```
+Run the server:
+```bash
+npm run dev
+```
+
+### 3. Frontend Setup
+Open a new terminal window:
+```bash
+cd ..
+npm install
+```
+Rename `.env.example` to `.env` and configure your API URL:
+```env
+VITE_API_URL=http://localhost:5000
+VITE_CLOUDFLARE_TURNSTILE_SITEKEY=your_site_key
+```
+Run the client:
+```bash
+npm run dev
+```
+
+---
+
+## 📁 Folder Structure
+
+```text
+Aletheia/
+├── backend/                   # Node.js Express server
+│   ├── src/
+│   │   ├── langchain/         # Agent definitions and prompts
+│   │   ├── langgraph/         # Node edge compilation
+│   │   ├── middleware/        # JWT auth protection
+│   │   ├── models/            # Mongoose schemas
+│   │   ├── routes/            # REST endpoints
+│   │   ├── socket/            # Real-time event handlers
+│   │   └── server.js          # Express entry point
+├── src/                       # React Frontend
+│   ├── components/            # Reusable UI components
+│   │   ├── dashboard/         # Dashboard layout and widgets
+│   │   ├── settings/          # Profile and settings modals
+│   │   └── ui/                # shadcn UI core components
+│   ├── context/               # React Context (Auth)
+│   ├── hooks/                 # Custom React hooks (useResearchAgent)
+│   └── lib/                   # API abstractions and utilities
+└── .env.example
+```
+
+---
+
+## 🧠 AI Workflow
+
+When a user searches for a ticker (e.g., `AAPL`):
+1. **User Request:** The client triggers a POST request to `/api/research`.
+2. **Supervisor Agent:** A LangGraph supervisor takes control, determining what data is needed.
+3. **Tool Execution:** The agent spawns workers to query Finnhub for price metrics and Tavily for recent news.
+4. **Synthesis:** Google's Gemini model ingests the raw JSON/HTML data and structures it according to a strict financial template.
+5. **Streaming:** The finalized sections (Executive Summary, Financial Health, Final Verdict) are streamed back to the client via Socket.IO in real-time, displaying in the `ProcessingPipeline` UI.
+
+---
+
+## 🔮 Future Scope
+- **PDF Report Export:** Allow users to download research in institutional PDF format.
+- **Backtesting Agent:** Introduce a node that tests the AI's recommendations against historical data.
+- **Multi-Asset Comparison:** Analyze two tickers side-by-side using a specialized comparison graph.
+
+---
+
+## 🤝 Contributing
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+## 📬 Contact
+- **Shubham Rao** - [GitHub](https://github.com/shubham12112004)
+- **Project Link:** [https://github.com/shubham12112004/Aletheia](https://github.com/shubham12112004/Aletheia)

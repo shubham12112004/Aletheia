@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Background Gradient: Deep Slate to Dark Navy -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="50%" stop-color="#090D16"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </linearGradient>
+
+    <!-- Glowing Border Ring Gradient -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#818CF8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#10B981" stop-opacity="0.8"/>
+    </linearGradient>
+
+    <!-- Stylized 'A' Cyan/Blue Left Stem -->
+    <linearGradient id="cyanBlueGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="50%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#60A5FA"/>
+    </linearGradient>
+
+    <!-- Stylized 'A' Emerald Right Stem -->
+    <linearGradient id="emeraldTealGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="50%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+
+    <!-- Ascending Financial Growth Trend Sparkline -->
+    <linearGradient id="trendGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#F43F5E"/>
+    </linearGradient>
+
+    <!-- Center Radial Glow -->
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Squircle Base Canvas -->
+  <rect x="16" y="16" width="480" height="480" rx="128" fill="url(#bgGrad)"/>
+
+  <!-- Core Ambient Glow -->
+  <circle cx="256" cy="256" r="200" fill="url(#coreGlow)"/>
+
+  <!-- Precision Border Ring -->
+  <rect x="16" y="16" width="480" height="480" rx="128" stroke="url(#borderGrad)" stroke-width="6" fill="none"/>
+
+  <!-- Center Logomark: Aletheia Financial AI Prism -->
+  <g transform="translate(0, 12)">
+    <!-- Left Leg of 'A' -->
+    <path d="M135 390L232 110C238 93 262 93 268 110L290 170L210 390H135Z" fill="url(#cyanBlueGrad)"/>
+
+    <!-- Right Leg of 'A' -->
+    <path d="M377 390L280 110C274 93 250 93 244 110L222 170L302 390H377Z" fill="url(#emeraldTealGrad)" fill-opacity="0.95"/>
+
+    <!-- Internal Financial Candlestick / Bar Chart -->
+    <rect x="204" y="290" width="24" height="75" rx="6" fill="#38BDF8" fill-opacity="0.75"/>
+    <rect x="244" y="240" width="24" height="125" rx="6" fill="#818CF8" fill-opacity="0.9"/>
+    <rect x="284" y="190" width="24" height="175" rx="6" fill="#10B981"/>
+
+    <!-- Financial Growth Trend Line with Peak Arrow -->
+    <path d="M160 320L215 280L255 290L348 175" stroke="url(#trendGrad)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M312 170H352V210" stroke="#F43F5E" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- AI Intelligence Spark / Diamond Node -->
+    <polygon points="352,170 370,152 352,134 334,152" fill="#38BDF8"/>
+    <circle cx="352" cy="152" r="4" fill="#FFFFFF"/>
+  </g>
+</svg>
