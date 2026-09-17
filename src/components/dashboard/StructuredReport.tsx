@@ -120,9 +120,9 @@ function TimelineSection({ items, icon, title, type = 'default' }: { items?: str
 }
 
 export function StructuredReport({ data }: { data: ReportData }) {
-  if (!data) return null;
-
   const [activeSection, setActiveSection] = useState<string>('all');
+
+  if (!data) return null;
   const confidenceScore = Math.min(100, Math.max(0, data.confidence || 85));
 
   const handleExportJSON = () => {

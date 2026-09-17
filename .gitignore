@@ -31,3 +31,14 @@ client_secret.json
 *.njsproj
 *.sln
 *.sw?
+
+# Build cache
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+
+# Local helper docs
+implementation_plan.md
+
